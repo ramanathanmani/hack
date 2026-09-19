@@ -4,10 +4,19 @@
 - event_name: MPOnline Idea & Innovation Hackathon 2026
 - event_dates: 09–10 October 2026, in-person, SSRGSP Bhopal (starts 09:00 IST, hack begins 10:30)
 - track: Technical
-- phase: DEPLOY (blocked)
+- phase: SUBMIT (blocked)
 - status: blocked
-- last_agent: devops-deploy
-- next_agent: conductor-decision (proceed to SHOW/SUBMIT on local-only + documented deploy path, or wait for unrestricted-network re-run of deploy.md §5)
+- last_agent: readme-submit
+- next_agent: conductor-decision — two independent blockers now on record: (1) DEPLOY: no
+  shareable preview URL (devops-deploy, sandbox egress restriction, see deploy.md §4-5); (2) SUBMIT:
+  six of MPOnline's ten mandatory submission files (Solution Synopsis, Solution Presentation PDF,
+  Problem Statement & Proposed Solution, Innovation & Differentiation Note, Impact & Benefits
+  Document, Implementation/Feasibility Plan — intake.md §5 items 1-6) do not exist as discrete
+  files/PDFs in this repo. Their underlying content exists in pitch.md/problem.md/plan.md but has
+  never been exported into the separate ≤1MB artifacts the portal's upload form requires. See
+  submit.md §1/§4 for the full checklist and gap list. Someone must author/export those 6 files
+  before the portal submission can actually be completed; README.md and the ready items
+  (architecture doc, demo video, repo URL) are done.
 - stack: Node.js 22 + TypeScript · Fastify 5 + raw `ws` · SQLite via better-sqlite3 (single file,
   forward-only .sql migrations) · hand-rolled SHA-256 hash chain (node:crypto), sharded per center ·
   React 19 + Vite 6 + plain CSS · deterministic seeded telemetry simulator · npm workspaces
