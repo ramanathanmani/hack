@@ -118,7 +118,7 @@ export function Audit() {
           </div>
         </section>
 
-        <hr className="simulator-controls__divider" style={{ borderTop: "1px solid var(--color-border)" }} />
+        <hr className="simulator-controls__divider" />
 
         <ChainTable checkpoints={state?.recentCheckpoints ?? []} brokenSeq={brokenSeqOf(banner)} />
       </main>

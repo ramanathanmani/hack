@@ -51,7 +51,7 @@ export function SimulatorControls({
         <div className="simulator-controls__field">
           <button
             type="button"
-            className="btn btn--danger"
+            className="btn btn--danger btn--large"
             onClick={onKill}
             disabled={busy || !selectedCenterId || selected?.status === "down"}
           >

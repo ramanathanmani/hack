@@ -157,18 +157,14 @@ export function ControlTower() {
             ) : null}
 
             {actionError ? (
-              <div
-                className="escalation-banner"
-                role="alert"
-                style={{ borderColor: "var(--color-grey)", background: "var(--color-grey-bg)" }}
-              >
+              <div className="escalation-banner escalation-banner--neutral" role="alert">
                 <p className="escalation-banner__detail">{actionError}</p>
               </div>
             ) : null}
 
             <div className="tower-layout">
               <div className="tower-layout__left">
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "-8px" }}>
+                <div className="badge-row">
                   <SimulatedBadge />
                 </div>
                 {isLoading ? (

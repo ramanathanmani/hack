@@ -1,5 +1,96 @@
 # QA log
 
+## ui-polish
+
+Phase HARDEN, run by ui-polish, 2026-09-19. Scope: visual consistency pass on the golden-path
+screens only — `web/src/routes/ControlTower.tsx`, `web/src/routes/Audit.tsx`, and the components/
+styles they use (`web/src/components/*.tsx`, `web/src/styles/*.css`). Read `design.md` and
+`brand.md` first. Touched `web/src/**` only (frontend-owned); no new pages, no animation libraries,
+no structural redesign.
+
+### What was already right (left untouched)
+
+The prior frontend-builder pass had already implemented most of design.md §5's rules correctly: 8px
+spacing scale via CSS variables, a single forest-green brand accent (`--color-accent`) used
+consistently for links/buttons/selected states, AA-checked status colors (darkened amber per
+design.md §6), monospace for hashes/arithmetic, and a real two-column → single-column responsive
+layout at 1024px. This pass found small, genuine inconsistencies rather than a broken base.
+
+### Changes made
+
+1. **Focus ring was a stray blue (`#1a73e8`), the one color in the app not from brand.md's
+   single-accent palette.** Changed `--focus-ring` in `web/src/styles/tokens.css` to use
+   `var(--color-accent)` (forest green) so every keyboard-focused control matches the brand accent
+   instead of introducing a second, unrelated color.
+2. **No hover/active states existed on any button anywhere** (`--color-accent-strong` was defined in
+   tokens.css but never referenced — a dead token). Added `:hover` states for `.btn`, `.btn--secondary`,
+   and `.btn--danger` in `web/src/styles/app.css`, using the existing `--color-accent-strong` token and
+   a new `--color-bad-strong` (darker red) token for the danger variant, so buttons no longer feel
+   static/dead on a demo laptop with a real cursor.
+3. **Primary CTA emphasis, per the task brief:** Kill Switch (`web/src/components/SimulatorControls.tsx`)
+   now uses the same `.btn--large` sizing already applied to Audit's "Verify Chain Integrity" button,
+   so both golden-path primary CTAs share one consistent "this is the button that matters" size/weight
+   treatment, while Reconnect/Reset Demo stay at normal size as secondary actions in the same panel —
+   this reinforces the hierarchy without changing the red-quarantine SimulatorControls convention design.md
+   requires.
+4. **`ConnectionPill`'s inline "Retry" control had zero CSS reset**, so it rendered with native browser
+   button chrome (grey box/border) inside a colored pill — an obvious visual clash. Reset it to a plain
+   underlined text link matching the pill's own text color (`web/src/styles/app.css`,
+   `.connection-pill__retry`).
+5. **`VerdictCard`'s input `<dl>` had no margin reset on `dt`/`dd`**, so browser default `dd` indentation
+   (~40px) misaligned the Sessions Affected / Avg Frozen Time / etc. grid — fixed with explicit
+   `margin: 0` plus a small type-scale distinction (uppercase muted label vs. bold value) so the
+   four-input grid reads cleanly instead of drifting right.
+6. **Two ad-hoc inline `style={{...}}` overrides were replaced with real CSS classes** for consistency
+   and to remove an actual bug: `web/src/routes/Audit.tsx`'s divider before the chain table had an
+   inline `style` that silently overrode the `.simulator-controls__divider` class's intended dashed-red
+   "quarantine" treatment with a plain solid grey line — removed the inline override so the divider
+   matches the same red-quarantine visual language used everywhere else SimulatorControls appears (a
+   design.md §5 consistency requirement, not just tidiness). `web/src/routes/ControlTower.tsx`'s
+   action-error banner and SimulatedBadge spacing hack were moved into two small named classes
+   (`.escalation-banner--neutral`, `.badge-row`) instead of inline styles, same visual result, easier
+   to maintain.
+7. Added a `:hover` border-highlight on `.center-card` (was previously only interactive via
+   click/selected state, with no affordance that the whole card is clickable).
+
+No copy was changed (copy.md is copywriter-owned), no new components/pages were added, no color
+outside brand.md's forest-green + neutral + red/amber/green status palette was introduced, and no
+JSX structure/logic changed — only `className` swaps, two new CSS custom properties
+(`--color-bad-strong`, reusing the already-defined but previously-dead `--color-accent-strong`), and
+new/edited CSS rules.
+
+### Verification
+
+**Disclosed limitation:** this agent's toolset in this session does not include a shell/Bash tool —
+only file read/write/edit/grep/glob — so `npm run typecheck --workspace web` and
+`npm run build --workspace web` (the two commands the task asked to be run) could **not** be executed
+directly by this pass. What was done instead, as a substitute, before and after every edit:
+- Read back every edited file in full after each `Edit` call to confirm exact JSX/TSX syntax
+  validity (matching braces/tags, correct string literals) by eye.
+- All changes are CSS-only (`web/src/styles/*.css`) or `className`-only swaps in `.tsx` files —
+  no new imports, no prop/type changes, no JSX structural changes — so there is no plausible new
+  TypeScript type error surface introduced. The only non-className TSX edits were: removing one
+  inline `style={{...}}` prop (Audit.tsx divider), removing one inline `style` object and replacing
+  a wrapping `<div>`'s className (ControlTower.tsx badge row/error banner), and adding one extra
+  class token to an existing `className` string (SimulatorControls.tsx Kill Switch button) — all
+  mechanically safe, no new identifiers referenced that don't already exist.
+- Grepped for any remaining stray inline `style=` attributes and blue/non-brand hex colors in
+  `web/src/**` after the edits to confirm none were reintroduced.
+
+**Action required by whoever runs GIT/HARDEN next:** please actually run
+`npm run typecheck --workspace web && npm run build --workspace web` (and ideally
+`npm run check:offline --workspace web`) before this lands, since this pass could not execute them.
+Given the narrow, additive nature of the changes (no logic/type changes, only CSS + className edits),
+risk of a real failure is low, but it has not been machine-verified this pass.
+
+### Files touched
+
+- `web/src/styles/tokens.css`
+- `web/src/styles/app.css`
+- `web/src/routes/ControlTower.tsx`
+- `web/src/routes/Audit.tsx`
+- `web/src/components/SimulatorControls.tsx`
+
 ## qa-demo-path
 
 Phase TEST, run by qa-demo-path, 2026-09-19. Judged as a tired sponsor with 90 seconds. Ran the
