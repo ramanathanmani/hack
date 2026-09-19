@@ -4,10 +4,15 @@
 - event_name: MPOnline Idea & Innovation Hackathon 2026
 - event_dates: 09–10 October 2026, in-person, SSRGSP Bhopal (starts 09:00 IST, hack begins 10:30)
 - track: Technical
-- phase: DECISION (complete)
+- phase: ARCHITECTURE (complete)
 - status: in_progress
-- last_agent: spec-judge
-- next_agent: architect
+- last_agent: architect
+- next_agent: planner
+- stack: Node.js 22 + TypeScript · Fastify 5 + raw `ws` · SQLite via better-sqlite3 (single file,
+  forward-only .sql migrations) · hand-rolled SHA-256 hash chain (node:crypto), sharded per center ·
+  React 19 + Vite 6 + plain CSS · deterministic seeded telemetry simulator · npm workspaces
+  (`server/`, `web/`, `shared/`) · host = self-hosted localhost:8080, one process serves API + WS +
+  built UI, fully offline, no cloud/no auth/no API keys
 - winner_spec: spec-a.md — "Sentinel" (full 5-stage control tower), as amended by decision.md §4–§5
 - runner_up_spec: spec-b.md — "Checkpoint" (absorbed as Sentinel milestone M1, not discarded)
 - chosen_problem: PS06 — Resilient & Trustworthy Online Assessment Ecosystem
@@ -43,6 +48,13 @@
   (AC-1..AC-14), 7 amendments (A1 milestone gating M1→M4, A2 in-app tamper control since no sqlite3 CLI,
   A3 framing header, A4 re-conduct-cost-avoided in verdict, A5/A6/A7), 5 mandatory merges from Spec B,
   a risk register, and an ordered 8-item cut list. Read before ARCHITECTURE.
+- /home/user/hack/.hackathon/architecture.md — **smallest architecture for Sentinel.** One Node
+  process (Fastify + ws + better-sqlite3 + simulator + static UI) on :8080. Contains the repo folder
+  map with hard owner boundaries (frontend-builder = `web/**`, backend-builder = `server/**`,
+  integration-agent = root config + `shared/types.ts` + `docs/**`), full SQL schema + hash rule +
+  verdict reasoning payload shape, env var list (no secrets exist), "no auth for demo", the
+  milestone→AC→file gating table (M1–M4), run/test/deploy commands, top-5 risks, and the
+  determinism/mock strategy. Read before PLAN and before any code is written.
 - /home/user/hack/.hackathon/intake.md — full rules, both rubrics with weights, agenda, 10-item
   submission kit, prizes, IP terms, confirmed-vs-unknown ledger
 - /home/user/hack/.hackathon/problem.md — PS selection with scoring table, golden path, scope fence,
