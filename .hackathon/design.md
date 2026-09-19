@@ -30,8 +30,9 @@ tamper. Everything in this doc is optimized for that arc, not for a "full produc
 5. Judge clicks **Reconnect** in `SimulatorControls`. Within ~1–2s sessions flip to `resumed`, clocks
    resume and visibly restore the frozen duration (a small "+47s restored" delta chip — TBD copy),
    `LedgerPanel` appends `resume` checkpoints.
-6. Judge (or presenter) clicks the incident row in `IncidentTimeline` → navigates to
-   `/incidents/:id`. `VerdictCard` shows decision ("Partial Time Extension" — TBD label per policy),
+6. `VerdictCard` renders inline on `/` itself — no navigation required (frontend-builder shipped
+   this as zero-click, which satisfies AC-10 better than a drill-down route; `/incidents/:id` was
+   never built and is out of scope, see §7 below). It shows the decision ("Partial Time Extension"),
    the rule, the input numbers (affected count, avg/max frozen ms, checkpoints lost), and the
    arithmetic line-by-line — not just a badge.
 7. Judge (or presenter) navigates to `/audit`. Clicks **Verify Chain Integrity** → chain shows
@@ -88,11 +89,12 @@ design them minimally (see §2 and §8).
   back to `/`. This is a legitimate, expected state right after `npm run seed`.
 - **Loading/error:** skeleton rows / POLLING pill, same convention as above.
 
-### `/incidents/:id` — Incident Detail + Verdict (primary demo screen, step 6)
-- **Purpose:** the "why should I trust this decision" payoff — show the computed verdict with its
-  full reasoning, not a black-box label.
+### `/incidents/:id` — Incident Detail + Verdict (NOT BUILT — superseded, see §1 step 6)
+- **Purpose:** would have been the "why should I trust this decision" payoff. Superseded because
+  `VerdictCard` renders inline on `/` (zero-click, satisfies AC-10 more directly) — this route was
+  never implemented and should not appear in demo scripts.
 - **Primary CTA:** none — read-only. Secondary link: "View chain for this incident's centers" →
-  `/audit` prefiltered (nice-to-have, not required).
+  `/audit` prefiltered (nice-to-have, not required, still not built).
 - **Empty state:** if verdict not yet computed (incident still open, pre-reconnect), `VerdictCard`
   shows a pending placeholder: "Verdict computes automatically once the incident resolves" (TBD copy)
   — must not show a fake verdict early.

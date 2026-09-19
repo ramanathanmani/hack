@@ -5,7 +5,9 @@ Reference prototype for MPOnline Idea & Innovation Hackathon 2026 (PS06). One No
 tamper-evident SHA-256 hash chain, and serves a React 19 + Vite UI. Fully offline, no auth, no
 API keys, no cloud dependency. See `.hackathon/architecture.md` for the full design.
 
-> Status: scaffold only. Backend/frontend implementation lands next (see `.hackathon/plan.md`).
+> Status: working prototype. Full golden path (kill switch → incident detection → freeze →
+> checkpoint → reconnect → resume → verdict, plus the audit tamper/verify cycle) runs live —
+> see `.hackathon/qa.md` for verification logs.
 
 ## Run locally
 
@@ -15,6 +17,10 @@ npm install
 
 # copy env defaults (optional — every var has a working default)
 cp .env.example .env
+
+# seed realistic demo fixtures (8 MP exam centers, candidates, one resolved
+# backstory incident) — do this before either run mode below
+npm run seed --workspace server
 
 # local dev: two processes, HMR — API :8080 + Vite :5173 with proxy
 npm run dev
