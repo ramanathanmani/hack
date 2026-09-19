@@ -29,7 +29,7 @@ export const config = {
   simSessionsPerCenter: num("SIM_SESSIONS_PER_CENTER", 3),
 
   examDurationS: num("EXAM_DURATION_S", 3600),
-  verdictFreezeThresholdS: num("VERDICT_FREEZE_THRESHOLD_S", 30),
+  verdictFreezeThresholdS: num("VERDICT_FREEZE_THRESHOLD_S", 10),
   verdictReconductThresholdS: num("VERDICT_RECONDUCT_THRESHOLD_S", 600),
   verdictCostPerCandidateInr: num("VERDICT_COST_PER_CANDIDATE_INR", 850),
 

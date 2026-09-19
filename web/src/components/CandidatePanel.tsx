@@ -19,9 +19,11 @@ const STATE_BADGE_CLASS: Record<SessionState, string> = {
 function SessionClock({
   remainingMs,
   serverNow,
+  state,
 }: {
   remainingMs: number;
   serverNow: number;
+  state: SessionState;
 }) {
   const [display, setDisplay] = useState(remainingMs);
 
@@ -31,11 +33,15 @@ function SessionClock({
     // countdown between pushes and snaps on every new remainingMs/serverNow
     // pair, which is what this effect's dependency array does).
     setDisplay(remainingMs);
+    // P1-1: while a center is frozen the server broadcasts no session.updated
+    // events for it, so a local decrement interval would silently tick the
+    // number down under the "Timer paused" banner. Hold the display instead.
+    if (state === "frozen") return;
     const id = setInterval(() => {
       setDisplay((prev) => Math.max(0, prev - 1000));
     }, 1000);
     return () => clearInterval(id);
-  }, [remainingMs, serverNow]);
+  }, [remainingMs, serverNow, state]);
 
   return (
     <div className="candidate-card__clock" aria-live="off">
@@ -100,6 +106,7 @@ export function CandidatePanel({ sessions }: { sessions: CandidateSession[] }) {
             <SessionClock
               remainingMs={session.remainingMs}
               serverNow={session.serverNow}
+              state={session.state}
             />
             <div className="candidate-card__meta-row">
               Question {session.currentQuestionIdx + 1} · Last answer saved:{" "}

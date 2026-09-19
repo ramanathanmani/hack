@@ -11,13 +11,15 @@ import type { Simulator } from "../sim/simulator.js";
 import { config } from "../config.js";
 
 export function registerSimRoutes(app: FastifyInstance, repo: Repo, simulator: Simulator): void {
-  app.addHook("preHandler", async (req, reply) => {
-    if (!config.enableSimControls) {
-      reply.code(403).send({ error: "sim_controls_disabled" });
-    }
-  });
-
+  // P2-7: the check used to live in a root-scoped app.addHook("preHandler"),
+  // which gated EVERY route on the Fastify instance (including GET / and
+  // /api/state), not just /api/sim/*, and didn't `return reply.send(...)` so
+  // Fastify treated it as a continuation rather than a stop. Checking inside
+  // each handler (matching routes/audit.ts) scopes the gate correctly.
   app.post<{ Params: { centerId: string } }>("/api/sim/kill/:centerId", async (req, reply) => {
+    if (!config.enableSimControls) {
+      return reply.code(403).send({ error: "sim_controls_disabled" });
+    }
     const center = repo.getCenter(req.params.centerId);
     if (!center)
       return reply.code(404).send({ error: "not_found", message: `center ${req.params.centerId} not found` });
@@ -26,6 +28,9 @@ export function registerSimRoutes(app: FastifyInstance, repo: Repo, simulator: S
   });
 
   app.post<{ Params: { centerId: string } }>("/api/sim/reconnect/:centerId", async (req, reply) => {
+    if (!config.enableSimControls) {
+      return reply.code(403).send({ error: "sim_controls_disabled" });
+    }
     const center = repo.getCenter(req.params.centerId);
     if (!center)
       return reply.code(404).send({ error: "not_found", message: `center ${req.params.centerId} not found` });
@@ -33,7 +38,10 @@ export function registerSimRoutes(app: FastifyInstance, repo: Repo, simulator: S
     return { ok: true, centerId: req.params.centerId, action: "reconnect" };
   });
 
-  app.post("/api/sim/reset", async () => {
+  app.post("/api/sim/reset", async (_req, reply) => {
+    if (!config.enableSimControls) {
+      return reply.code(403).send({ error: "sim_controls_disabled" });
+    }
     simulator.reset();
     return { ok: true, action: "reset" };
   });

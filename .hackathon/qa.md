@@ -775,4 +775,89 @@ Ran the full suite live on 2026-09-19 against the current working tree (server/,
   `server/scripts/verify-chain.ts:5` (per architecture.md's hard ban / Amendment A2 — tamper and
   verify both go through `better-sqlite3` directly). Ban holds.
 
+## debugger - P1 fixes
+
+Phase HARDEN, run by debugger, 2026-09-19. Scope: the 4 P1s + P2-7 from `review.md` (code-reviewer).
+No new features; no other files touched. All fixes verified by actually running the code (build +
+tests + a live server on a real port + curl), not just by reading it.
+
+### P1-1 — frozen SessionClock kept ticking down under "Timer paused"
+`web/src/components/CandidatePanel.tsx` — `SessionClock` now takes a `state: SessionState` prop and
+its `useEffect` returns early (no `setInterval`) when `state === "frozen"`, in addition to snapping
+`display` to the fresh `remainingMs` first. `state` was added to the effect's dependency array so the
+interval is torn down/rebuilt the moment a session's `state` changes (e.g. `frozen` -> `resumed`).
+Caller (`CandidatePanel`) now passes `state={session.state}`. Verified via `npm run typecheck` (web)
+and `npm run build` (web) — both pass; the frozen-clock behavior itself is a rendered-UI effect that
+only a browser dry-run can visually confirm, which is out of scope for this curl-based pass (same
+caveat review.md already flagged for P1-1/P1-4/P2-8).
+
+### P1-2 — VERDICT_FREEZE_THRESHOLD_S 30 -> 10
+Changed the default in both `server/src/config.ts:32` and `.env.example:23`. Verified live: booted
+the built server against the seeded fixture, `POST /api/sim/kill/C1`, waited 15s (`date` before/after
+confirms elapsed time), `POST /api/sim/reconnect/C1`. New verdict `INC-0002` came back
+`decision: "partial-extension"` with `max_frozen_ms: 14018` and rule text showing the new
+`FREEZE_THRESHOLD_MS (10000ms)` — confirms a realistic 15s outage now reliably lands on the money
+verdict instead of "No Action Needed". `npm test` still 16/16 green (verdict-policy tests use
+their own injected thresholds, unaffected by the default change).
+
+### P1-3 — "Reset Demo" now replays the same fixture as `npm run seed`
+Extracted the seeding logic (scenario seed + 22-min-in exam clock + per-session answer-save history
++ pre-resolved backstory incident/verdict at `BACKSTORY_CENTER_INDEX`) out of `scripts/seed.ts` into
+a new shared function `seedDemoFixture(repo, now)` in `server/src/sim/seedFixture.ts`. Both
+`server/scripts/seed.ts` and `Simulator.reset()` (`server/src/sim/simulator.ts`) now call it, so
+`reset()` no longer falls back to a bare `repo.seedScenario()`. `Simulator.scenario` is reassigned to
+the fixture's scenario on reset so subsequent live ticks (answer-save autosaves) use the same
+center/session ids the fixture just wrote. Verified live: `npm run seed` printed "Seeded 8 centers,
+24 sessions, 70 answer-save checkpoints, and one resolved backstory incident at Indore - Rajwada
+(-> partial-extension)" (same numbers as before the refactor); then hit `POST /api/sim/reset` on a
+running server that had since been kill/reconnect/tampered, and `GET /api/state` afterward showed the
+fixture restored exactly: 8 centers, 24 sessions, 50 (of 70, client-capped) recentCheckpoints, one
+resolved incident `INC-0001` at `C4` with `verdicts: [("INC-0001", "partial-extension")]` — matching
+the pre-tamper/pre-kill seeded state, not a blank/healthy reset.
+
+### P1-4 — tamper no longer double-broadcasts the checkpoint
+`server/src/routes/audit.ts` — removed the `broadcast({ type: "checkpoint.appended", ... })` call in
+`POST /api/sim/tamper`; `repo.tamperCheckpoint()` still runs (mutates the row + returns it to the
+caller in the HTTP response), but no WS event fires for a checkpoint id the client already has,
+because `useLiveState`'s `checkpoint.appended` reducer branch is a blind prepend, not an upsert-by-id.
+The FAIL banner/highlight in the UI is driven by `POST /api/audit/verify`'s response, not by this
+event, so nothing regresses. Verified live end-to-end: `POST /api/sim/tamper` ->
+`{"tampered":true,"checkpointId":213,"centerId":"C4","seq":28}`, `POST /api/audit/verify` ->
+`{"ok":false,"brokenAt":{"centerId":"C4","rowId":213,"seq":28,...}}` (verify still correctly finds the
+break), then `GET /api/state` -> counted ids in `recentCheckpoints` with a `Counter`: 50 total ids, 0
+duplicates. Also re-ran `npm test` (chain.test.ts's synthetic-tamper assertions, 4 tests) — still
+green, confirming `verifyLedger`/`tamperCheckpoint` themselves were untouched.
+
+### P2-7 — ENABLE_SIM_CONTROLS=false no longer 403s the whole app
+`server/src/routes/sim.ts` — removed the root-scoped `app.addHook("preHandler", ...)` (which gated
+every route registered on the shared Fastify instance, and didn't `return` on `reply.send()`, so
+Fastify treated the 403 as a non-terminal continuation) and moved the
+`if (!config.enableSimControls) return reply.code(403)...` check into each of the three handlers
+(`kill`, `reconnect`, `reset`), matching the pattern `routes/audit.ts` already used for
+`/api/sim/tamper`. Verified live: booted the server with `PORT=8081 ENABLE_SIM_CONTROLS=false`. Results:
+`GET /` -> 200, `GET /api/state` -> 200, `POST /api/audit/verify` -> 200, `POST /api/sim/kill/C1` ->
+403, `POST /api/sim/reset` -> 403, `POST /api/sim/tamper` -> 403. Exactly the intended scope: only
+`/api/sim/*` is gated.
+
+### Full verification run (after all 5 fixes)
+- `npm run typecheck` (server + web): PASS, 0 errors.
+- `npm run build` (web: tsc --noEmit + vite build; server: tsc + copy-migrations): PASS.
+- `npm test` (server, node:test): 16/16 PASS, unchanged pass count from the pre-fix baseline.
+- Live golden path against the built server + fresh `npm run seed`:
+  - kill C1 -> wait 15s (measured via `date`) -> reconnect C1 -> new verdict `INC-0002` =
+    `partial-extension` (not `no-action`). P1-2 confirmed fixed.
+  - tamper -> verify (`ok:false`, correct `brokenAt`) -> `/api/state.recentCheckpoints` has 0
+    duplicate ids. P1-4 confirmed fixed.
+  - `POST /api/sim/reset` after the above -> state matches a fresh `npm run seed` (8 centers, 24
+    sessions, `INC-0001`/C4/partial-extension backstory verdict), not a bare healthy re-seed.
+    P1-3 confirmed fixed.
+  - `ENABLE_SIM_CONTROLS=false` -> only `/api/sim/*` 403s, `/` and `/api/state` still 200. P2-7
+    confirmed fixed.
+  - P1-1 (frozen clock) confirmed by code/typecheck/build only — needs the mandatory human browser
+    dry-run review.md already calls for (no browser available in this pass).
+
+### Not touched (out of scope per task)
+P2-5 (50-row cap vs "Full Chain" label), P2-6 (cumulative `frozenMsTotal` in verdict math), P2-8
+(static risk score), P3-9 (dead code) — left as-is per the explicit "P1s + P2-7 only" scope.
+
 **Overall: all 6 checks pass, no failures to report.** No file:line failures — nothing to fix.

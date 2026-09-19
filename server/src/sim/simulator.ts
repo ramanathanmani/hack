@@ -17,6 +17,7 @@
 import { Repo } from "../repo.js";
 import { mulberry32, rngInt, type Rng } from "./rng.js";
 import { buildScenario, fixedAnswer, type Scenario } from "./scenario.js";
+import { seedDemoFixture } from "./seedFixture.js";
 import { isFreezable } from "../domain/sessions.js";
 import { computeVerdict } from "../domain/verdict.js";
 import {
@@ -79,15 +80,19 @@ export class Simulator {
   }
 
   /**
-   * AC-12 — truncate + re-seed the fixed scenario + re-seed the RNG,
-   * without restarting the server process.
+   * AC-12 — truncate + replay the same intentional demo fixture
+   * `scripts/seed.ts` produces (22-min-in exam clock, answer-save
+   * checkpoints, pre-resolved backstory incident/verdict), then re-seed the
+   * RNG, without restarting the server process. (P1-3: this used to fall
+   * back to a bare `repo.seedScenario()`, leaving "Reset Demo" on a blander,
+   * verdict-free state than the one the demo was designed on.)
    */
   reset(): void {
     this.killed.clear();
-    this.rng = mulberry32(config.simSeed);
-    this.repo.truncateAll();
     const now = Date.now();
-    this.repo.seedScenario(this.scenario.centers, this.scenario.sessions, configExamDurationMs, now);
+    const result = seedDemoFixture(this.repo, now);
+    this.scenario = result.scenario;
+    this.rng = mulberry32(config.simSeed);
     this.broadcast({ type: "sim.reset", payload: this.repo.getApiState(now) });
   }
 

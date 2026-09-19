@@ -32,8 +32,14 @@ export function registerAuditRoutes(app: FastifyInstance, repo: Repo, broadcast:
       payload && typeof payload === "object"
         ? { ...(payload as Record<string, unknown>), answer: "TAMPERED", tamperedAt: Date.now() }
         : { tamperedAt: Date.now() };
-    const tampered = repo.tamperCheckpoint(target.id, tamperedPayload);
-    broadcast({ type: "checkpoint.appended", payload: tampered! });
+    // P1-4: do NOT broadcast a checkpoint.appended event here — this row
+    // already exists in every client's recentCheckpoints; broadcasting it
+    // again causes useLiveState's blind-prepend reducer to duplicate the row
+    // (duplicate React key + a doubled "Broken" row in the ledger/audit
+    // table). The FAIL banner and row highlight are driven entirely by this
+    // response / the subsequent POST /api/audit/verify call, not by a WS
+    // event, so dropping the broadcast loses nothing.
+    repo.tamperCheckpoint(target.id, tamperedPayload);
     return { tampered: true, checkpointId: target.id, centerId: target.centerId, seq: target.seq };
   });
 }
