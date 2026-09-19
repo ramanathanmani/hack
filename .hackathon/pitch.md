@@ -112,11 +112,13 @@ re-conduct verdict*. The verdict engine is the original piece — turning an out
 remedy with published arithmetic is not a thing that exists in Indian exam operations today.
 
 ### Prototype / MVP — 20
-It is a running product, not a mockup. All 14 acceptance criteria pass (decision.md §7, verified in
-qa.md). Kill switch, detection, freeze, checkpointing, resume-with-time-restored, verdict computation,
-chain verification, tamper detection and reset all work live, from one command, on one laptop, with
-networking disabled. 16/16 tests pass. The entire arc is on a single screen — the only navigation in
-the demo is one visit to `/audit`.
+It is a running product, not a mockup. All 14 acceptance criteria pass at the HTTP level
+(decision.md §7), and the core loop was additionally verified live in a real browser (screenshots
+in `.hackathon/screenshots/`): kill switch, detection, freeze with a genuinely paused clock,
+checkpointing, resume-with-time-restored, verdict computation, chain verification, tamper
+detection and reset all work, from one command, on one laptop, with networking disabled. 16 unit
+tests cover the hash chain, clock, and verdict logic. The entire arc is on a single screen — the
+only navigation in the demo is one visit to `/audit`.
 
 ### Problem Understanding — 15
 We answered MPOnline's five-stage framing in their own vocabulary rather than picking off twelve
@@ -146,7 +148,8 @@ verify, not something you have to be trusted on.
 
 ### Scalability & Sustainability — 10
 The ledger is **sharded per center**, so verification is parallel and per-center, not one global chain
-— 8 centers on screen today, 800 is the same code path with more rows. SQLite → Postgres is a repo
+— 8 centers on screen today; 800 is architecturally the same code path with more rows (unbenchmarked
+at that scale). SQLite → Postgres is a repo
 swap because all SQL is hand-written in one module with no ORM to fight. The simulator is not a
 permanent fixture: it is one documented ingestion seam, and a real center agent replaces it by POSTing
 the same event shape. Sustainability: zero external services, zero API keys, zero per-seat licences —

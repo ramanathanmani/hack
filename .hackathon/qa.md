@@ -897,3 +897,17 @@ red-quarantined SimulatorControls panel all render as design.md/brand.md specifi
 This closes the "zero browser verification, ever" gap that judge-scorecard.md flagged as the
 single biggest score-limiting risk (docked hardest at Prototype-MVP and Presentation).
 Server process stopped after the run; DB re-seeded to the clean fixture state afterward.
+
+## fallback demo video
+
+Recorded a real screen capture of the golden path via Playwright (video recording feature,
+not a synthetic mock) driving the actual running server: kill -> ~14s hold -> reconnect
+(partial-extension verdict) -> /audit -> verify PASS -> tamper -> verify FAIL. Compressed with
+the Playwright-bundled ffmpeg (VP8, 854px wide, 280kbps) to 330KB, well under the submission
+kit's 1MB-per-file cap. Saved to `demo/sentinel-golden-path.webm`.
+
+This satisfies the mandatory submission item (Prototype/Demo file, <=1MB) flagged as missing in
+judge-scorecard.md, and is also the "laptop dies" fallback demo.md's backup plan said didn't
+exist yet. Format is WebM (VP8) since the sandboxed ffmpeg build has no libx264/mp4 encoder
+available -- WebM plays natively in all modern browsers; convert to MP4 with a full ffmpeg build
+if the submission portal strictly requires it.
