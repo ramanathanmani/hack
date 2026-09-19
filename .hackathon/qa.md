@@ -1,5 +1,146 @@
 # QA log
 
+## backend M1
+
+Phase BUILD, M1 "Checkpoint parity" backend, run by backend-builder. Owned path: `server/**`
+(architecture.md §3). Did not touch `web/**`, `shared/types.ts`, or any `.hackathon/*.md` besides
+this file. Files existing before this pass: `server/package.json`, `server/tsconfig.json`,
+`server/src/db/connection.ts`, `server/src/db/migrate.ts`, `server/src/db/migrations/001_init.sql`
+(integration-agent scaffold, verified in "integration - scaffold" above).
+
+Note: this session found the repo already at a state where an earlier pass of this same build had
+apparently landed and committed (`git log` shows `b8a87df "M1 golden path: backend + frontend
+built"` and a follow-up fix commit, both attributed to this session). This pass re-derived the
+backend independently against architecture.md/decision.md/plan.md/spec-a.md/shared/types.ts and the
+result matched almost exactly (byte-identical on most files) — the one live discrepancy was
+`server/scripts/seed.ts` and `server/src/sim/scenario.ts`, which a concurrently-running data-seeder
+pass had already enhanced (backstory incident, answer-save history, `BACKSTORY_CENTER_INDEX`). Those
+two files were left as data-seeder produced them (their owned paths per architecture.md §3) rather
+than being overwritten back to a plainer version — see "## data-seeder" below for what's in them.
+
+### Files built (first-write order, chain.ts first per architecture.md §14)
+- `server/src/domain/chain.ts` + `server/test/chain.test.ts` — `canonicalJson`, `hashEntry`,
+  `buildNextEntry`, `verifyChain`. Pure/DB-free by design so it's unit-testable standalone.
+- `server/src/domain/clock.ts` + `server/test/clock.test.ts` — `remainingMs`/`freezeFields`/
+  `resumeFields`, the one authoritative exam-clock formula (architecture.md §5).
+- `server/src/domain/verdict.ts` + `server/test/verdict.test.ts` — `computeVerdict()`, fixed
+  `reasoning_json` shape (`policy_version`/`rule`/`inputs`/`arithmetic`/`cost_avoided`), mandatory
+  honesty `basis` string (A6).
+- `server/src/domain/sessions.ts`, `server/src/domain/incidents.ts` — pure state-machine/
+  classification helpers.
+- `server/src/config.ts` — env var parsing + defaults, names matching `.env.example` exactly.
+- `server/src/sim/rng.ts` — mulberry32 seeded PRNG (`Math.random()` never used anywhere in `server/**`
+  — confirmed by grep, see below).
+- `server/src/sim/scenario.ts` — fixed center/candidate/question fixtures (later extended by
+  data-seeder).
+- `server/src/sim/simulator.ts` — seeded tick loop; `kill()`/`reconnect()`/`reset()` only toggle a
+  heartbeat-suppression flag or truncate+reseed. Incident open/close is driven by a real
+  missed-heartbeat check inside the same tick loop (`detectIncidents`/`recoverIncidents`), never
+  short-circuited by `kill()`/`reconnect()` directly — matches the task brief's honesty requirement
+  and architecture.md §13.
+- `server/src/repo.ts` — all SQL (only file besides `db/connection.ts` importing `better-sqlite3`).
+  Freeze-all-sessions-at-a-center, resume-all, and checkpoint append each run inside one
+  `db.transaction()`. Includes the A2 raw-`UPDATE` tamper path (`tamperCheckpoint`) and
+  `getApiState()` (the `GET /api/state` aggregate, architecture decision #2).
+- `server/src/routes/{state,centers,sessions,incidents,verdicts,audit,sim}.ts` — REST surface per
+  spec-a §6 + M5. `/api/sim/*` and `/api/sim/tamper` gated by `ENABLE_SIM_CONTROLS`.
+- `server/src/ws/hub.ts` — raw `ws` broadcast; every event payload is a `WsEvent` from
+  `shared/types.ts`, itself a subset of `ApiState`.
+- `server/src/index.ts` — Fastify entrypoint: `getDb` → `migrate` → `Repo` → Fastify → `Hub` (attached
+  to Fastify's already-created `http.Server`, no `app.ready()` ordering issue) → routes → `Simulator`
+  → `simulator.start()` → `app.listen()`.
+- `server/scripts/verify-chain.ts`, `server/scripts/tamper.ts` — CLI PASS/FAIL and raw-UPDATE-tamper
+  paths, zero `sqlite3` CLI dependency (both go through `Repo`/`better-sqlite3` directly, per A2).
+- `server/scripts/seed.ts` (initial version, since enhanced by data-seeder).
+- `server/package.json`: added a `copy-migrations` step to `build` — `tsc` only emits compiled `.ts`,
+  so `db/migrations/*.sql` was missing from `dist/` until this was added; without it, `npm start`
+  failed at boot with `ENOENT ... db/migrations` the first time it was tried against a real build.
+
+### Commands run
+
+```bash
+$ npx tsx --test server/test/chain.test.ts
+# → 8/8 pass (canonicalJson determinism, hashEntry determinism/sensitivity, verifyChain PASS on a
+#   clean multi-center chain, verifyChain catches a tampered payload with exact centerId/rowId/seq/
+#   expectedHash/actualHash, verifyChain catches a broken prev_hash link, genesis shape)
+
+$ npm test --workspace server        # chain + clock + verdict, via tsx --test
+# → 16/16 pass, 0 fail
+
+$ npm run typecheck                  # both workspaces
+# → server: clean. web: clean.
+
+$ npm run build                      # both workspaces
+# → web: vite build OK. server: tsc OK, dist/server/src/index.js present (matches
+#   server/package.json's "start": "node dist/server/src/index.js" — confirmed against the actual
+#   compiled output, not just assumed).
+
+$ rm -rf server/data && npm start --workspace server   # after build
+# → "[migrate] applied: 001_init.sql" then "[sentinel] listening on http://127.0.0.1:8080 (development)"
+
+$ curl -s http://127.0.0.1:8080/api/state
+# → real JSON: 8 centers (Bhopal/Indore/Gwalior/Jabalpur/Ujjain/Sagar names), 24 sessions with
+#   real remainingMs/serverNow, real genesis checkpoints with real SHA-256 hashes, incidents: [],
+#   verdicts: [] (fresh seed) — not a stub.
+
+$ curl -s -X POST http://127.0.0.1:8080/api/sim/kill/C1
+$ sleep 3 && curl -s http://127.0.0.1:8080/api/state
+# → C1 status flips to 'down' (riskScore 90), INC-0001 opened with classification
+#   'Connectivity Loss', detailJson shows {"signal":"missed_heartbeat", ...} (real detection, not
+#   created by the kill handler), all 3 C1 sessions state='frozen', freeze checkpoints appended.
+
+$ curl -s -X POST http://127.0.0.1:8080/api/sim/reconnect/C1
+$ sleep 3 && curl -s http://127.0.0.1:8080/api/state
+# → C1 status back to 'healthy', sessions state='resumed', frozenMsTotal restored (~13s in this
+#   run), incident status='resolved' with closedAt set, one verdict computed (real
+#   frozen-duration/affected-count inputs, decision depended on the random tick timing of this
+#   manual run — landed 'no-action' once at 13s frozen, 'partial-extension' in the seeded backstory
+#   scenario at a fixed 47s — both are real computations, not hardcoded).
+
+$ curl -s -X POST http://127.0.0.1:8080/api/audit/verify        # → {"ok":true}
+$ curl -s -X POST http://127.0.0.1:8080/api/sim/tamper           # → {"tampered":true,"checkpointId":...}
+$ curl -s -X POST http://127.0.0.1:8080/api/audit/verify        # → {"ok":false,"brokenAt":{...}}
+$ curl -s -X POST http://127.0.0.1:8080/api/sim/reset            # → {"ok":true,"action":"reset"}
+$ curl -s -X POST http://127.0.0.1:8080/api/audit/verify        # → {"ok":true}   (PASS again)
+
+$ npx tsx server/scripts/verify-chain.ts   # → "PASS ..." exit 0
+$ npx tsx server/scripts/tamper.ts         # → tampers latest checkpoint via raw UPDATE
+$ npx tsx server/scripts/verify-chain.ts   # → "FAIL — broken link detected: {...}" exit 1
+$ npm run seed --workspace server && npx tsx server/scripts/verify-chain.ts
+# → re-seed clears the tamper; PASS again
+
+$ grep -rn "Math.random" server/src server/scripts server/test    # → none (only comments mentioning the ban)
+$ grep -rn "sqlite3 " server/src server/scripts server/test       # → none
+```
+
+### Result
+- `chain.test.ts`: PASS (8/8), run standalone as required, before anything else.
+- Full `npm test` (chain/clock/verdict): PASS (16/16).
+- `npm run typecheck`: PASS (both workspaces).
+- `npm run build`: PASS (both workspaces); confirmed `server/dist/server/src/index.js` exists and
+  matches `server/package.json`'s `start` script.
+- `npm start` after a clean build: PASS — server boots, migrates, seeds, listens on `:8080`.
+- `GET /api/state`: PASS — returns real, non-stub aggregate data.
+- Full golden path exercised live over HTTP: kill → real missed-heartbeat detection → incident
+  opened → sessions frozen with real checkpoints → reconnect → sessions resumed with time restored
+  → incident resolved → verdict computed. All AC-2..AC-6, AC-9 behaviors observed directly, not
+  inferred from code reading alone.
+- `/api/audit/verify` PASS → `/api/sim/tamper` → `/api/audit/verify` FAIL with exact broken row →
+  `/api/sim/reset` → PASS again: full AC-7/AC-8/AC-12 cycle confirmed over HTTP.
+- `npm run verify-chain` / `npm run tamper` CLI scripts: PASS/FAIL exit codes confirmed independent
+  of the HTTP route (A2's second path, no `sqlite3` CLI anywhere).
+- Repo-wide grep gates: no `Math.random()` calls, no `sqlite3` CLI invocations in `server/**`.
+- Left `server/scripts/seed.ts` and `server/src/sim/scenario.ts` as data-seeder produced them (see
+  "## data-seeder" below) rather than reverting to this pass's plainer initial versions — their
+  richer seed (backstory incident, answer-save history) was re-verified against this pass's
+  `repo.ts`/`domain/*` unchanged and still builds/tests/verifies clean.
+- Not built (correctly out of M1 scope per architecture.md §10 gating table / decision.md A1):
+  `domain/incidents.ts`'s classification taxonomy beyond a single type (M2 cut-list item 5),
+  multi-classification/escalation, `server/src/static.ts` (integration-agent's file, wires
+  `@fastify/static` for production — not required for M1's API/WS surface to be provable over curl).
+- Cleanup: all `server/data/*` and temporary log files removed after manual testing; nothing left
+  running (`node dist/server/src/index.js` processes killed).
+
 ## data-seeder
 
 Phase BUILD, data-seeder pass, run after backend-builder's M1 backend landed. Owned files only
