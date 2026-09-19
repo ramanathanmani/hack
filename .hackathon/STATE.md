@@ -80,6 +80,31 @@
   `audit.ts`, `verdicts.ts`, etc.), and `ws/hub.ts` per architecture.md §3, matching the exact
   `ApiState`/`WsEvent` shapes in `shared/types.ts` that this frontend pass already codes against.
 
+## Backend M1 status (BUILD, backend-builder — complete, re-verified)
+- `server/src/**` built for M1 "Checkpoint parity": `domain/{chain,clock,verdict,sessions,incidents}.ts`,
+  `sim/{rng,scenario,simulator}.ts`, `repo.ts` (all SQL), `routes/{state,centers,sessions,incidents,
+  verdicts,audit,sim}.ts`, `ws/hub.ts`, `index.ts` (Fastify boot), `config.ts`, plus
+  `scripts/{verify-chain,tamper,seed}.ts` and `test/{chain,clock,verdict}.test.ts`. `chain.ts` +
+  `chain.test.ts` were the first files written/verified, per architecture.md §14.
+- Kill switch never opens an incident directly — `sim/simulator.ts`'s tick loop detects a real missed
+  heartbeat and only then opens/classifies the incident and freezes sessions; reconnect only restores
+  the heartbeat source, and the same detection loop observes recovery and resumes/closes/computes the
+  verdict. Verified live over HTTP, not just by code reading (see qa.md "backend M1").
+- `server/package.json`'s `build` script now also runs `copy-migrations` (copies `db/migrations/*.sql`
+  into `dist/`) — without it, a fresh `npm start` after `npm run build` failed at boot with
+  `ENOENT ... db/migrations`. This was the one real gap found in the prior scaffold/build wiring.
+- Re-verified end-to-end against data-seeder's enhanced `seed.ts`/`scenario.ts` (left as data-seeder
+  produced them — see below): `npm test` (16/16), `npm run typecheck` and `npm run build` (both
+  workspaces) all PASS; fresh `npm start` after a clean build serves real `GET /api/state` data over
+  curl; full kill→detect→freeze→checkpoint→reconnect→resume→verdict loop and the
+  verify→tamper→verify(FAIL)→reset→verify(PASS) audit loop both exercised live over HTTP and via the
+  CLI scripts. Full commands/output in `.hackathon/qa.md` under "backend M1".
+- Not built in this pass (out of M1 scope / integration-agent's file): `server/src/static.ts`
+  (`@fastify/static` prod wiring) — M1's acceptance surface is provable over the raw API/WS without it.
+- **Next:** integration-agent to wire `static.ts` for a single-process `npm start` demo (serving
+  `web/dist`), then a full browser-based end-to-end pass (kill-switch click, ledger render, verdict
+  card, audit tamper) since this pass only verified the backend via curl/CLI, not the rendered UI.
+
 ## Data-seeding status (BUILD, data-seeder — complete)
 - Owned files only (architecture.md §3): `server/scripts/seed.ts` (rewritten) and
   `server/src/sim/scenario.ts` (added `BACKSTORY_CENTER_INDEX` export). No routes/ws/domain files

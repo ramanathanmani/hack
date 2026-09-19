@@ -4,9 +4,10 @@
  *
  * Static serving of the built web bundle in production
  * (`@fastify/static` -> `../../web/dist`) is `server/src/static.ts`,
- * integration-agent's file per architecture.md §3; it is wired in here once
- * that file exists. Absent it, this process still serves the full API + WS
- * surface, which is what M1's acceptance criteria require.
+ * integration-agent's file per architecture.md §3. It is registered last,
+ * only when NODE_ENV=production, so dev mode (Vite dev server + proxy) is
+ * unaffected and there is no SPA-fallback 404 handler competing with API
+ * routes during development.
  */
 
 import Fastify from "fastify";
@@ -22,6 +23,7 @@ import { registerIncidentRoutes } from "./routes/incidents.js";
 import { registerVerdictRoutes } from "./routes/verdicts.js";
 import { registerAuditRoutes } from "./routes/audit.js";
 import { registerSimRoutes } from "./routes/sim.js";
+import { registerStatic } from "./static.js";
 import { config } from "./config.js";
 import type { WsEvent } from "../../shared/types.js";
 
@@ -54,6 +56,10 @@ export async function buildApp() {
   registerVerdictRoutes(app, repo);
   registerAuditRoutes(app, repo, broadcast);
   registerSimRoutes(app, repo, simulator);
+
+  if (config.nodeEnv === "production") {
+    await registerStatic(app);
+  }
 
   simulator.start();
 
