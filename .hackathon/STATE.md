@@ -4,10 +4,10 @@
 - event_name: MPOnline Idea & Innovation Hackathon 2026
 - event_dates: 09–10 October 2026, in-person, SSRGSP Bhopal (starts 09:00 IST, hack begins 10:30)
 - track: Technical
-- phase: RESEARCH (complete)
+- phase: SPEC (complete)
 - status: in_progress
-- last_agent: research-scout
-- next_agent: spec-author
+- last_agent: spec-author
+- next_agent: spec-judge
 - chosen_problem: PS06 — Resilient & Trustworthy Online Assessment Ecosystem
 - chosen_idea: Live exam-integrity control tower — one vertical slice of
   Prevention → Detection → Response → Recovery → Trust
@@ -31,6 +31,11 @@
 3. Registration close date, submission-lock deadline (+timezone) and fee are UNKNOWN.
 
 ## Artifacts
+- /home/user/hack/.hackathon/specs/spec-a.md — "Sentinel": full 5-stage loop, multi-center grid, incident
+  classification, interactive tamper-and-verify demo. Higher wow, higher build risk under the 3h Round-1 clock.
+- /home/user/hack/.hackathon/specs/spec-b.md — "Checkpoint": one center, one incident, single-page golden
+  path, CLI-only chain verification. Sized to comfortably fit the 3h Round-1 budget with rehearsal margin.
+  No spec-c: real Round-1 budget is ~3h, not the ≥16h threshold for a wildcard spec.
 - /home/user/hack/.hackathon/intake.md — full rules, both rubrics with weights, agenda, 10-item
   submission kit, prizes, IP terms, confirmed-vs-unknown ledger
 - /home/user/hack/.hackathon/problem.md — PS selection with scoring table, golden path, scope fence,
