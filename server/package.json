@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && npm run copy-migrations",
+    "copy-migrations": "mkdir -p dist/server/src/db/migrations && cp src/db/migrations/*.sql dist/server/src/db/migrations/",
     "start": "node dist/server/src/index.js",
     "test": "tsx --test test/**/*.test.ts",
     "test:chain": "tsx --test test/chain.test.ts",
