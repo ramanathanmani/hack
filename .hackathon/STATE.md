@@ -4,10 +4,10 @@
 - event_name: MPOnline Idea & Innovation Hackathon 2026
 - event_dates: 09–10 October 2026, in-person, SSRGSP Bhopal (starts 09:00 IST, hack begins 10:30)
 - track: Technical
-- phase: TEST (test-runner + qa-demo-path both complete — no P0s found, golden path verified live)
+- phase: GIT (complete)
 - status: in_progress
-- last_agent: qa-demo-path
-- next_agent: security-linter (HARDEN phase — see decision below)
+- last_agent: git-pusher
+- next_agent: devops-deploy
 - stack: Node.js 22 + TypeScript · Fastify 5 + raw `ws` · SQLite via better-sqlite3 (single file,
   forward-only .sql migrations) · hand-rolled SHA-256 hash chain (node:crypto), sharded per center ·
   React 19 + Vite 6 + plain CSS · deterministic seeded telemetry simulator · npm workspaces
@@ -19,7 +19,7 @@
 - chosen_idea: Live exam-integrity control tower — one vertical slice of
   Prevention → Detection → Response → Recovery → Trust
 - fallbacks: PS03 (AI-driven OSM), PS04 (Digital inclusion, rural HE)
-- repo_url: TBD
+- repo_url: https://github.com/ramanathanmani/hack (branch: main)
 - preview_url: TBD
 - demo_freeze: false
 - hours_total: ~3h to the Round 1 cut on Day 1 (10:30 → 13:30 IST, 09 Oct), then evening off-venue,
