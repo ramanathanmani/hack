@@ -63,6 +63,17 @@ export interface Scenario {
   questions: readonly QuestionFixture[];
 }
 
+/**
+ * Index of the center used by `scripts/seed.ts` for a pre-seeded "backstory"
+ * incident: already opened, resolved, and verdicted before the app is ever
+ * opened, so the golden path (centers -> incident timeline -> ledger ->
+ * verdict) is populated on first paint instead of starting from a blank
+ * dashboard (data-seeder requirement: judges never see an empty app).
+ * Chosen away from index 0 so the first center a judge looks at stays
+ * pristine/healthy and available for the live kill-switch demo.
+ */
+export const BACKSTORY_CENTER_INDEX = 3;
+
 export function buildScenario(centersCount: number, sessionsPerCenter: number): Scenario {
   const centers: CenterFixture[] = [];
   const sessions: SessionFixture[] = [];

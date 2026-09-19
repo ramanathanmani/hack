@@ -4,11 +4,11 @@
 - event_name: MPOnline Idea & Innovation Hackathon 2026
 - event_dates: 09–10 October 2026, in-person, SSRGSP Bhopal (starts 09:00 IST, hack begins 10:30)
 - track: Technical
-- phase: BUILD (Phase 0 SCAFFOLD complete; frontend M1 complete, backend M1 pending)
+- phase: BUILD (Phase 0 SCAFFOLD complete; frontend M1 complete, backend M1 landed, data-seeder pass complete)
 - status: in_progress
-- last_agent: frontend-builder (M1)
-- next_agent: backend-builder (server/** M1 routes/index.ts/ws still needed), then data-seeder,
-  then integration-agent
+- last_agent: data-seeder
+- next_agent: integration-agent (re-verify full stack end-to-end against seeded data), then
+  test-runner / debugger as needed
 - stack: Node.js 22 + TypeScript · Fastify 5 + raw `ws` · SQLite via better-sqlite3 (single file,
   forward-only .sql migrations) · hand-rolled SHA-256 hash chain (node:crypto), sharded per center ·
   React 19 + Vite 6 + plain CSS · deterministic seeded telemetry simulator · npm workspaces
@@ -79,6 +79,31 @@
 - **Next for backend-builder:** implement `server/src/index.ts`, routes (`state.ts`, `sim.ts`,
   `audit.ts`, `verdicts.ts`, etc.), and `ws/hub.ts` per architecture.md §3, matching the exact
   `ApiState`/`WsEvent` shapes in `shared/types.ts` that this frontend pass already codes against.
+
+## Data-seeding status (BUILD, data-seeder — complete)
+- Owned files only (architecture.md §3): `server/scripts/seed.ts` (rewritten) and
+  `server/src/sim/scenario.ts` (added `BACKSTORY_CENTER_INDEX` export). No routes/ws/domain files
+  touched.
+- `npm run seed` now produces a lived-in demo state instead of a blank t=0 dashboard: exam started
+  ~22 min before seed time, 2-4 real answer-save checkpoints per session (deterministic
+  `mulberry32(SIM_SEED)`, no `Math.random()`), and one pre-resolved "backstory" incident (47s outage,
+  3 sessions, real freeze/resume checkpoints, real computed `partial-extension` verdict with
+  cost-avoided arithmetic) at center C4 "Indore - Rajwada" — built from the same `Repo`/domain
+  functions the live simulator uses. Every other center stays healthy/pristine so the operator can
+  still run the live kill -> incident -> reconnect -> recovery -> verdict arc for the demo.
+- Verified against a real local SQLite file (not the tracked dev DB): `npm run build --workspace
+  server` PASS, seed PASS, `npm run verify-chain --workspace server` PASS both on first seed and
+  after re-seeding (idempotent — `truncateAll()` runs first), direct SQL inspection confirmed
+  realistic MP center names / Indian candidate names+roll numbers / 100 real hash-chained
+  checkpoints / one resolved incident+verdict. Full commands and output in `.hackathon/qa.md` under
+  "data-seeder".
+- No auth exists in this system (architecture.md §7 explicitly bans auth/login/roles for the demo),
+  so no "judge user" was created and there is nothing to add to a future deploy.md credentials
+  section.
+- **Next:** integration-agent (or backend-builder once `index.ts`/routes/ws land) should run
+  `npm run build && npm start` end-to-end against this seeded data to confirm the UI renders the
+  populated golden path (healthy fleet + one resolved incident/verdict visible immediately, plus a
+  live center available for the kill-switch demo).
 
 ## Artifacts
 - /home/user/hack/.hackathon/specs/spec-a.md — "Sentinel": full 5-stage loop, multi-center grid, incident

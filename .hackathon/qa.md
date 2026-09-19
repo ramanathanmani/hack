@@ -1,5 +1,88 @@
 # QA log
 
+## data-seeder
+
+Phase BUILD, data-seeder pass, run after backend-builder's M1 backend landed. Owned files only
+(architecture.md §3): `server/scripts/seed.ts`, `server/src/sim/scenario.ts`. Read but did not edit
+`architecture.md`, `shared/types.ts`, `server/src/repo.ts`, `server/src/domain/*.ts`,
+`server/src/sim/simulator.ts`, `server/src/config.ts`, `server/src/sim/rng.ts`, brand.md.
+
+### What changed
+- `server/src/sim/scenario.ts`: added `BACKSTORY_CENTER_INDEX` export (center C4 by default,
+  "Indore - Rajwada") documenting which center hosts the pre-seeded incident, kept away from index 0
+  so the operator's live kill-switch demo still has a pristine first center. No changes to the
+  existing center/candidate/question fixtures — they already used real MP district/city names
+  (Bhopal, Indore, Gwalior, Jabalpur, Ujjain, Sagar) and a realistic Indian candidate-name pool with
+  `MPO2026-####`-style roll numbers, matching brand.md's "Sentinel" / MPOnline framing.
+- `server/scripts/seed.ts`: rewrote to make the golden path look alive from t=0 instead of an empty
+  dashboard:
+  1. Exam `examStartedAt` is set 22 minutes before seed time (not `Date.now()`), so sessions open
+     mid-exam with a partially-consumed clock, not a suspicious fresh boot.
+  2. Every session gets 2-4 real `answer_save` checkpoints (deterministic `mulberry32(SIM_SEED)` PRNG
+     from `sim/rng.ts` — no `Math.random()`, per architecture.md §13/decision #5) so the ledger and
+     candidate panels show real progress, not just genesis rows.
+  3. One pre-resolved "backstory" incident is seeded at `BACKSTORY_CENTER_INDEX`'s center using the
+     *same* domain functions the live simulator uses (`repo.freezeSessionsAtCenter`,
+     `resumeSessionsAtCenter`, `openIncident`, `closeIncident`, `domain/verdict.computeVerdict`,
+     `insertVerdict`) — a 47s simulated outage, 3 affected sessions, real hash-chained freeze/resume
+     checkpoints, real computed `partial-extension` verdict with cost-avoided arithmetic. Every other
+     center is left `healthy`/untouched so the operator can still run the live
+     kill -> incident -> reconnect -> recovery -> verdict arc via `SimulatorControls` for the demo.
+  No routes/ws/domain files were touched — only the two owned files, calling already-public `Repo`
+  methods and already-public domain functions.
+
+### Commands run (against a real local SQLite file, not the dev DB)
+
+```bash
+$ npm run build --workspace server
+# → tsc -p tsconfig.json && copy-migrations → PASS, no errors
+
+$ rm -f data/sentinel_seedtest.db
+$ SENTINEL_DB_PATH=./data/sentinel_seedtest.db npm run seed --workspace server
+# → Seeded 8 centers, 24 sessions, 70 answer-save checkpoints, and one resolved backstory incident
+#   at Indore - Rajwada (INC-0001 -> partial-extension, 3 sessions affected).
+
+$ SENTINEL_DB_PATH=./data/sentinel_seedtest.db npm run verify-chain --workspace server
+# → PASS — chain integrity verified across all centers.
+
+# Idempotency: re-ran seed against the same file, then re-verified.
+$ SENTINEL_DB_PATH=./data/sentinel_seedtest.db npm run seed --workspace server
+# → Seeded 8 centers, 24 sessions, 70 answer-save checkpoints, one resolved backstory incident
+#   (same shape, new timestamps — truncateAll() runs first, so no duplication/drift).
+$ SENTINEL_DB_PATH=./data/sentinel_seedtest.db npm run verify-chain --workspace server
+# → PASS — chain integrity verified across all centers.
+
+# Direct DB inspection (better-sqlite3, read-only) to confirm realistic data landed:
+$ node -e "... SELECT id,name,status,candidate_cnt FROM centers ..."
+# → 8 centers: C1 Bhopal - Arera Colony, C2 Bhopal - MP Nagar, C3 Indore - Vijay Nagar,
+#   C4 Indore - Rajwada, C5 Gwalior - City Centre, C6 Jabalpur - Napier Town, C7 Ujjain - Freeganj,
+#   C8 Sagar - Civil Lines — all status 'healthy', candidate_cnt 3 each.
+$ node -e "... SELECT id,center_id,candidate_name,roll_no,state,frozen_ms_total FROM candidate_sessions LIMIT 8 ..."
+# → e.g. S-C1-01 / Aarav Sharma / MPO2026-0001 / active; S-C2-02 / Vivaan Joshi / MPO2026-0005 / active
+$ node -e "... SELECT * FROM incidents ..."
+# → INC-0001, center C4, opened/closed 47s apart, classification 'Connectivity Loss',
+#   severity 'medium', status 'resolved', affected_count 3
+$ node -e "... SELECT reasoning_json FROM verdicts ..."
+# → decision partial-extension; inputs {affected_candidates:3, max_frozen_ms:47000,
+#   avg_frozen_ms:47000, checkpoints_lost:0, threshold_ms:30000, exam_duration_ms:3600000};
+#   arithmetic ["47000ms frozen > 30000ms threshold", "0 checkpoints lost",
+#   "-> PARTIAL EXTENSION +47s"]; cost_avoided.basis states the INR figure is illustrative (A6).
+$ node -e "... SELECT kind, COUNT(*) FROM checkpoints GROUP BY kind ..."
+# → answer_save 70, freeze 3, genesis 24, resume 3  (100 total, all real SHA-256 chain entries)
+```
+
+### Result
+- `npm run build --workspace server`: PASS
+- Seed against a real local SQLite file (`SENTINEL_DB_PATH` override, not the tracked `data/sentinel.db`): PASS
+- `npm run verify-chain --workspace server`: PASS, both on first seed and after a re-seed (idempotent)
+- Direct SQL inspection confirms: realistic MP center names, realistic Indian candidate names + roll
+  numbers, one resolved incident with a real computed verdict populated before any operator action,
+  100 real hash-chained checkpoints, 7 of 8 centers left pristine for the live kill-switch demo arc.
+- No auth exists in this system (architecture.md §7 — "No auth for demo", explicit hard-ban on
+  auth/login/roles). No "judge user" was created; nothing to document in deploy.md for credentials.
+- Test artifacts (`server/data/sentinel_seedtest.db*`) were removed after verification; `server/data/`
+  and root `data/` are gitignored per architecture.md, so no DB files are tracked in git.
+
 ## frontend M1
 
 Phase BUILD, M1 "Checkpoint parity" frontend, run by frontend-builder. Built against
