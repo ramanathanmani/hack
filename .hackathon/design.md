@@ -255,6 +255,11 @@ needed (e.g. a simple hash-link glyph between checkpoint rows).
   §2's quoted strings as the literal set that needs final wording (status banners, verdict labels,
   empty-state text, SimulatorControls header) — do not introduce new UI copy sites without updating
   this doc.
+- **Copy resolved:** see `.hackathon/copy.md` (copywriter, 2026-09-19) for the final wording of every
+  TBD string flagged above — screen headlines/subheads/CTAs, ConnectionPill states, escalation and
+  candidate-session banners, ledger row labels, SimulatorControls panel text, VerdictCard
+  rule/arithmetic/cost-avoided phrasing, and the PASS/FAIL/neutral/error Verify-banner text on
+  `/audit`. Frontend-builder should pull strings from `copy.md`, not restate them here.
 - `brand.md` did not exist at design time — no color palette, type scale, or logo lockup was
   available. Color usage in §5/§6 is functional (status semantics) not brand-driven; if brand.md
   lands later, only hex values / type family should change, not the semantic mapping (green=good,

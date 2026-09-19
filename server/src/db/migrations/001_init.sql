@@ -2,7 +2,7 @@
 -- Source of truth: architecture.md §4. INTEGER epoch-milliseconds for every
 -- timestamp (never ISO strings, never SQLite datetime()).
 
-CREATE TABLE schema_migrations (name TEXT PRIMARY KEY, applied_at INTEGER NOT NULL);
+-- schema_migrations is bootstrapped by db/migrate.ts before this file runs.
 
 CREATE TABLE centers (
   id            TEXT PRIMARY KEY,           -- 'C1'..'C8'
