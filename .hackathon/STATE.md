@@ -4,8 +4,8 @@
 - event_name: MPOnline Idea & Innovation Hackathon 2026
 - event_dates: 09–10 October 2026, in-person, SSRGSP Bhopal (starts 09:00 IST, hack begins 10:30)
 - track: Technical
-- phase: PROBLEM (complete) — held before RESEARCH/SPEC
-- status: blocked
+- phase: RESEARCH (complete)
+- status: in_progress
 - last_agent: research-scout
 - next_agent: spec-author
 - chosen_problem: PS06 — Resilient & Trustworthy Online Assessment Ecosystem
@@ -19,17 +19,16 @@
   then Day 2 finale presentations from 09:00
 - hours_remaining: N/A — event is 20 days out
 
-## blockers
-1. **Rules conflict, must be resolved by a human.** FAQ: project/code/design/idea/content "must be
-   created during the hackathon duration"; previously built projects are ineligible. Agenda: 10:30
-   session reviews "premade presentations/solutions". Until MPOnline answers, BUILD must not start.
-   Ask hackathon@mponline.gov.in / +91-7024589934 / +91-7880172879.
+## blockers (human/process only — do not block BUILD; see decisions.md D6)
+1. **Rules conflict, needs eventual human confirmation.** FAQ: project/code/design/idea/content "must
+   be created during the hackathon duration"; previously built projects are ineligible. Agenda: 10:30
+   session reviews "premade presentations/solutions". Ask hackathon@mponline.gov.in /
+   +91-7024589934 / +91-7880172879 before the real event. Not a blocker for building a reference
+   prototype now — see D6.
 2. **No registered team.** Requires 2–4 humans aged 16–25, physically in Bhopal on 09–10 Oct, with a
-   paid non-refundable registration. This session cannot satisfy that.
+   paid non-refundable registration. Outside this session's control; does not block building the
+   product itself.
 3. Registration close date, submission-lock deadline (+timezone) and fee are UNKNOWN.
-4. Agent/Task dispatch is disabled in this session, so no specialist subagents could be spawned;
-   the conductor executed INTAKE and PROBLEM itself. Re-enable subagents before RESEARCH → SPEC so
-   spec-author can produce competing specs and spec-judge can rule.
 
 ## Artifacts
 - /home/user/hack/.hackathon/intake.md — full rules, both rubrics with weights, agenda, 10-item

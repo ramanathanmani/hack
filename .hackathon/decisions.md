@@ -52,3 +52,9 @@
      budget. If not allowed → the pre-event work is limited to research, problem framing, architecture on
      paper, and the six non-code narrative documents; BUILD starts 09 Oct 10:30 and must hit a working
      detect→recover loop by 13:30.
+
+### 2026-09-19 — Proceed to BUILD despite unresolved human/process blockers
+- Decision: User explicitly authorized proceeding through SPEC → BUILD → DEPLOY now, in full autonomous mode, without waiting for MPOnline's answer on the pre-build eligibility question or for team registration. Pipeline status changed from blocked to in_progress.
+- Why: These two blockers require actions this session cannot take (emailing organizers, registering a human team) and the event is 20 days out. Building a working reference prototype now is reversible risk (it can be rebuilt live on 09 Oct if organizers require it) and is explicitly what the user asked for.
+- Rejected alternatives: Continuing to hold the pipeline at status=blocked indefinitely — rejected per direct user instruction to stop asking permission and ship a working product.
+- Follow-up: Before the real event, the user must still email hackathon@mponline.gov.in to confirm pre-built code is allowed, and must register a 2-4 person team. These remain open items tracked in STATE.md blockers, informational only.
