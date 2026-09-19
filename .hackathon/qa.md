@@ -509,3 +509,28 @@ This pass touched only integration-agent-owned paths per architecture.md §3: ro
 as scaffold necessities), `docs/architecture.md` (copy), `README.md` stub. No backend routes,
 domain logic, or real UI were implemented — that is backend-builder's and frontend-builder's next
 work, per plan.md's fork point after T05.
+
+## test-runner
+
+Ran the full suite live on 2026-09-19 against the current working tree (server/, web/, shared/).
+
+- **`npm test` (root → server workspace, 16 tests):** PASS. All chain/hash, remainingMs freeze/resume,
+  and verdict-policy tests (AC-5, AC-6, AC-7, AC-8) pass. `web/package.json` has no `test` script;
+  root `npm test` only runs server (`test --workspace server`), matches repo config, not a gap in
+  this run.
+- **`npm run typecheck` (server + web, via tsc --noEmit):** PASS, zero errors in both workspaces.
+- **`npm run build` (web: tsc --noEmit + vite build, then server: tsc + copy-migrations):** PASS.
+  `web/dist` produced (index.html + 1 css + 1 js bundle, 247KB/76KB gzip). `server/dist` produced with
+  migrations copied to `dist/server/src/db/migrations`.
+- **`npm run check:offline` (web):** PASS — `check:offline PASS — no external origins in web/dist`,
+  confirms AC-14 (zero outbound network calls) at the build-artifact level.
+- **Repo-wide ban: `Math.random(` in `server/src` and `web/src`:** Zero live invocations. The only
+  hits are in code comments documenting the ban itself: `server/src/sim/rng.ts:2` and
+  `server/src/sim/scenario.ts:8`. `web/src` has zero matches at all. Ban holds.
+- **Repo-wide ban: `sqlite3` CLI invocations in scripts:** Zero live invocations anywhere
+  (`server/scripts`, `web/scripts`, no other `scripts/` dirs in the tree outside `node_modules`/`dist`).
+  Only hits are comments explaining why the CLI is *not* used: `server/scripts/tamper.ts:4-5` and
+  `server/scripts/verify-chain.ts:5` (per architecture.md's hard ban / Amendment A2 — tamper and
+  verify both go through `better-sqlite3` directly). Ban holds.
+
+**Overall: all 6 checks pass, no failures to report.** No file:line failures — nothing to fix.
