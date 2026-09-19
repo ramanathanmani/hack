@@ -1,0 +1,74 @@
+/* tokens.css — brand.md color direction (forest green accent, neutrals) +
+   design.md §5/§6 layout/accessibility rules. Plain CSS only, no build step,
+   system font stacks only (no web fonts, per architecture.md §2/AC-14). */
+
+:root {
+  /* Brand */
+  --color-accent: #2d5016; /* forest green */
+  --color-accent-strong: #1f3810;
+  --color-accent-contrast: #ffffff;
+
+  /* Neutrals */
+  --color-bg: #ffffff;
+  --color-bg-alt: #f5f5f4; /* warm gray, very light */
+  --color-border: #d9d7d3;
+  --color-text: #333333; /* dark charcoal */
+  --color-text-muted: #666666;
+  --color-neutral: #999999; /* warm gray */
+
+  /* Status semantics — never color alone (design.md §6) */
+  --color-good: #1e7a34; /* green, AA on white */
+  --color-good-bg: #e8f4ea;
+  --color-caution: #9a6700; /* darkened amber for AA text contrast */
+  --color-caution-bg: #fbf1de;
+  --color-bad: #b3261e; /* red */
+  --color-bad-bg: #fbe9e8;
+  --color-grey: #666666;
+  --color-grey-bg: #eeeeee;
+
+  /* Spacing — 8px grid */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 32px;
+  --space-6: 48px;
+
+  /* Type */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Focus ring */
+  --focus-ring: 2px solid #1a73e8;
+  --focus-ring-offset: 2px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+}
+
+a {
+  color: var(--color-accent);
+}
+
+button,
+:focus-visible {
+  outline-offset: var(--focus-ring-offset);
+}
+
+:focus-visible {
+  outline: var(--focus-ring);
+}
+
+table {
+  border-collapse: collapse;
+}

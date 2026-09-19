@@ -4,10 +4,11 @@
 - event_name: MPOnline Idea & Innovation Hackathon 2026
 - event_dates: 09–10 October 2026, in-person, SSRGSP Bhopal (starts 09:00 IST, hack begins 10:30)
 - track: Technical
-- phase: BUILD (Phase 0 SCAFFOLD complete)
+- phase: BUILD (Phase 0 SCAFFOLD complete; frontend M1 complete, backend M1 pending)
 - status: in_progress
-- last_agent: integration-agent (scaffold)
-- next_agent: backend-builder + frontend-builder (parallel fork, per plan.md Phase 0 fork point)
+- last_agent: frontend-builder (M1)
+- next_agent: backend-builder (server/** M1 routes/index.ts/ws still needed), then data-seeder,
+  then integration-agent
 - stack: Node.js 22 + TypeScript · Fastify 5 + raw `ws` · SQLite via better-sqlite3 (single file,
   forward-only .sql migrations) · hand-rolled SHA-256 hash chain (node:crypto), sharded per center ·
   React 19 + Vite 6 + plain CSS · deterministic seeded telemetry simulator · npm workspaces
@@ -55,6 +56,29 @@
 - **Fork point reached:** `server/**` and `web/**` are disjoint from here. backend-builder should
   start with `domain/chain.ts` + `chain.test.ts` per architecture.md §14 (first code written, because
   AC-7/AC-8 fail silently and late otherwise).
+
+## Frontend M1 status (BUILD, frontend-builder — complete)
+- `web/src/**` built for M1 "Checkpoint parity" golden path: `App.tsx` + minimal hand-rolled router
+  ("/", "/audit"), `routes/ControlTower.tsx`, `routes/Audit.tsx`, all 8 components named in
+  architecture.md §3 / design.md §4 (FramingHeader, CenterGrid, CandidatePanel, LedgerPanel,
+  VerdictCard, SimulatorControls, SimulatedBadge, ConnectionPill), `lib/api.ts` (typed fetch),
+  `lib/useLiveState.ts` (WS + 2s-poll fallback, one shared reducer), `lib/clock.ts`,
+  `styles/tokens.css` + `styles/app.css` (brand.md colors, 8px grid, AA contrast, focus rings,
+  aria-live). All user-facing strings pulled from `copy.md`.
+- Built against `shared/types.ts` only — `server/**` had no `index.ts`/routes/`ws` yet at build
+  time, so the app was verified with the backend absent (ConnectionPill correctly shows
+  OFFLINE/polling failure paths, no crash) rather than against mocks.
+- `npm run typecheck --workspace web`, `npm run build --workspace web`, and
+  `npm run check:offline --workspace web` all PASS. Full command output in
+  `.hackathon/qa.md` under "frontend M1". Could not run a full headless-browser render check (no
+  puppeteer/playwright/jsdom in this environment) — recommend test-runner/integration-agent confirm
+  with a real browser once `server/src/index.ts` exists.
+- Not built (deferred, per M1 scope): multi-center fleet polish, IncidentTimeline component,
+  `/center/:id`, `/session/:id`, `/incidents`, `/incidents/:id` drill-downs — these are M2/M4 per
+  architecture.md §10's gating table.
+- **Next for backend-builder:** implement `server/src/index.ts`, routes (`state.ts`, `sim.ts`,
+  `audit.ts`, `verdicts.ts`, etc.), and `ws/hub.ts` per architecture.md §3, matching the exact
+  `ApiState`/`WsEvent` shapes in `shared/types.ts` that this frontend pass already codes against.
 
 ## Artifacts
 - /home/user/hack/.hackathon/specs/spec-a.md — "Sentinel": full 5-stage loop, multi-center grid, incident

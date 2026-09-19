@@ -1,5 +1,89 @@
 # QA log
 
+## frontend M1
+
+Phase BUILD, M1 "Checkpoint parity" frontend, run by frontend-builder. Built against
+`shared/types.ts` as source of truth; `server/**` had no routes/index.ts/ws yet at build time
+(only db/connection.ts, migrate.ts, 001_init.sql existed), so the app was verified against a dead
+backend — no mocks were added, since the API/WS routes are named by architecture.md §3 and the app
+must degrade honestly (ConnectionPill OFFLINE) rather than fake data.
+
+### Files added (web/src/** only)
+- `styles/tokens.css`, `styles/app.css` — brand.md forest-green accent + neutrals, 8px grid,
+  AA-checked status colors (amber darkened per design.md §6), focus rings, no web fonts.
+- `router.tsx` — minimal hand-rolled pushState router (no new dependency; only "/" and "/audit"
+  are wired for M1 per design.md §1).
+- `lib/api.ts` — typed fetch wrappers for GET /api/state, POST /api/sim/kill|reconnect|reset,
+  POST /api/audit/verify, POST /api/sim/tamper, GET /api/verdicts/:id.
+- `lib/useLiveState.ts` — WS client (`/ws`) with auto-degrade to 2s polling of GET /api/state after
+  a 3s connect timeout or a close/error event; single reducer shared by both the WS event path and
+  the poll/snapshot path, per architecture.md §8/§11 risk 3.
+- `lib/clock.ts` — display-only duration formatter; the client never computes the exam clock
+  (architecture.md §5), it only extrapolates the *display* and snaps to server `remainingMs` /
+  `serverNow` on every push.
+- `components/`: FramingHeader, ConnectionPill, CenterGrid (+ skeleton), CandidatePanel,
+  LedgerPanel, VerdictCard (+ skeleton), SimulatorControls, SimulatedBadge — all copy pulled
+  verbatim from `copy.md` (no inline copy authoring; the handful of structural labels not covered
+  by copy.md, e.g. table column-adjacent field labels like "Question N", are plain factual UI
+  labels, not narrative copy).
+- `routes/ControlTower.tsx` (`/`) — self-sufficient for the whole kill→freeze→checkpoint→
+  reconnect→resume→verdict arc (AC-10): auto-selects the first center on hydrate, escalation
+  banner, SimulatorControls, VerdictCard, CandidatePanel + LedgerPanel scoped to the selected
+  center. Loading = skeleton cards (no shimmer). Empty (zero centers) = the copy.md seed message.
+  Error/WS-drop = ConnectionPill flips to POLLING/OFFLINE silently, Retry link after 3s offline.
+- `routes/Audit.tsx` (`/audit`) — Verify Chain Integrity button (large, top, no-scroll), neutral/
+  verifying/PASS/FAIL/error banner exactly per copy.md wording, quarantined red Tamper (simulator)
+  control, full chain table with the broken row highlighted on FAIL.
+- `App.tsx` — renders ControlTower or Audit based on pathname; unknown paths fall back to `/` since
+  M1's route surface is fixed to these two.
+- `main.tsx` — now renders `<App />` (replaced the scaffold placeholder), imports the two stylesheets.
+
+### Commands run
+
+```bash
+$ npm run typecheck --workspace web
+# → tsc -p tsconfig.json --noEmit  → clean, no errors
+
+$ npm run build --workspace web
+# → tsc --noEmit && vite build
+# → dist/index.html (0.43 kB), dist/assets/index-*.css (9.97 kB, gzip 2.32 kB),
+#   dist/assets/index-*.js (247.05 kB, gzip 76.08 kB)
+# → built in 1.34s
+
+$ npm run check:offline --workspace web
+# → check:offline PASS — no external origins in web/dist
+
+# Manual dev-server smoke (no backend running on :8080):
+$ npx vite --port 5183 &
+$ curl -s http://127.0.0.1:5183/                 # → 200, index.html served, no server-side crash
+$ curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:5183/api/state
+# → 500 (proxy target :8080 not listening — expected, no backend yet)
+```
+
+### Result
+
+- `npm run typecheck` (web): PASS
+- `npm run build` (web): PASS
+- `npm run check:offline` (web): PASS
+- `vite` dev server: starts and serves `index.html` without crashing. Could not run a full headless
+  browser render check in this environment (no puppeteer/playwright/jsdom installed and none named
+  in architecture.md as a dependency to add). By code inspection: `useLiveState`'s initial
+  `getState()` call and its WS-connect-timeout/error/close handlers all route failures through
+  `ApiError` → `catch` blocks that set `connection: "offline"` and `error`, never throw during
+  render — so with the backend absent (confirmed via the `/api/state` 500 above), the expected
+  behavior is `ConnectionPill` = OFFLINE with the seed-message/empty state, not a blank screen or an
+  uncaught exception. Recommend integration-agent or test-runner re-verify with a real browser once
+  `server/src/index.ts` exists and again with it stopped, to close this gap with an actual rendered
+  screenshot.
+- Not implemented in this pass (out of M1 scope, deferred to later milestones per architecture.md
+  §10 gating table): CenterGrid multi-center fleet view (M1 renders whatever `centers[]` the backend
+  returns — no hardcoded count), IncidentTimeline component, `/center/:id`, `/session/:id`,
+  `/incidents`, `/incidents/:id` drill-down routes, ConnectionPill's M4-listed polish. `Reset Demo`
+  button is wired to `POST /api/sim/reset` even though AC-12 is formally an M2 gating AC, since
+  `SimulatorControls`' component inventory (design.md §4) includes it for M1 and it costs nothing to
+  wire against the same route the M1 backend must already expose for rehearsal resets.
+
+
 ## integration - scaffold
 
 Phase 0 SCAFFOLD (plan.md T00–T05), run by integration-agent. Environment: Node v22.22.2,
