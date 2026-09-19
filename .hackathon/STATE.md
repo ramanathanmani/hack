@@ -4,10 +4,12 @@
 - event_name: MPOnline Idea & Innovation Hackathon 2026
 - event_dates: 09–10 October 2026, in-person, SSRGSP Bhopal (starts 09:00 IST, hack begins 10:30)
 - track: Technical
-- phase: SPEC (complete)
+- phase: DECISION (complete)
 - status: in_progress
-- last_agent: spec-author
-- next_agent: spec-judge
+- last_agent: spec-judge
+- next_agent: architect
+- winner_spec: spec-a.md — "Sentinel" (full 5-stage control tower), as amended by decision.md §4–§5
+- runner_up_spec: spec-b.md — "Checkpoint" (absorbed as Sentinel milestone M1, not discarded)
 - chosen_problem: PS06 — Resilient & Trustworthy Online Assessment Ecosystem
 - chosen_idea: Live exam-integrity control tower — one vertical slice of
   Prevention → Detection → Response → Recovery → Trust
@@ -36,6 +38,11 @@
 - /home/user/hack/.hackathon/specs/spec-b.md — "Checkpoint": one center, one incident, single-page golden
   path, CLI-only chain verification. Sized to comfortably fit the 3h Round-1 budget with rehearsal margin.
   No spec-c: real Round-1 budget is ~3h, not the ≥16h threshold for a wildcard spec.
+- /home/user/hack/.hackathon/decision.md — **spec-judge ruling: Spec A wins.** Contains the freeze rule
+  ("Builders implement this spec's acceptance criteria only"), the 14-item authoritative acceptance list
+  (AC-1..AC-14), 7 amendments (A1 milestone gating M1→M4, A2 in-app tamper control since no sqlite3 CLI,
+  A3 framing header, A4 re-conduct-cost-avoided in verdict, A5/A6/A7), 5 mandatory merges from Spec B,
+  a risk register, and an ordered 8-item cut list. Read before ARCHITECTURE.
 - /home/user/hack/.hackathon/intake.md — full rules, both rubrics with weights, agenda, 10-item
   submission kit, prizes, IP terms, confirmed-vs-unknown ledger
 - /home/user/hack/.hackathon/problem.md — PS selection with scoring table, golden path, scope fence,
