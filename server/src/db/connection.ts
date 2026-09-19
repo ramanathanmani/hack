@@ -5,28 +5,76 @@
  * to `repo.ts`, which imports this module — never the driver directly
  * (architecture.md §3, §11 risk 5).
  *
- * Driver: better-sqlite3 (synchronous, embedded, single file). Verified via
- * the native-module smoke check recorded in .hackathon/qa.md under
- * "integration - scaffold": `node -e "require('better-sqlite3')"` succeeded
- * in this environment on Node v22.22.2.
+ * Driver: node:sqlite (DatabaseSync), Node's built-in synchronous SQLite
+ * module — no native compiled addon, so no ABI-version risk.
  *
- * FALLBACK PLAN (documented, not implemented — architecture.md §11 risk 5):
- * if prebuilt binaries for better-sqlite3 ever fail to load for the target
- * Node ABI (e.g. a judge's laptop with a different Node build), the
- * documented fallback is Node 22's built-in `node:sqlite` module, which
- * exposes a synchronous API shape close enough to swap in behind this one
- * module without touching `repo.ts`'s call sites. Do NOT implement that
- * fallback now — only `repo.ts` (backend-builder) may ever import a driver,
- * and only this file chooses which one.
+ * FALLBACK HISTORY (architecture.md §11 risk 5): this module originally used
+ * `better-sqlite3`. That native addon compiled fine (verified in
+ * .hackathon/qa.md "integration - scaffold" on Node v22.22.2) but crashed at
+ * runtime on a different deployment host (Vercel Sandbox, Node v24.21.0)
+ * with a native-cleanup-hook assertion failure — a real ABI mismatch between
+ * the compiled binding and that host's Node/V8 build, exactly the risk this
+ * comment used to warn about. Swapped to `node:sqlite` here, behind the same
+ * `.prepare()/.pragma()/.transaction()/.close()` shape, so `repo.ts`'s call
+ * sites did not change at all.
  */
 
-import Database from "better-sqlite3";
+import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
-let db: Database.Database | null = null;
+export interface Stmt {
+  run(...params: unknown[]): { lastInsertRowid: number | bigint; changes: number | bigint };
+  get(...params: unknown[]): unknown;
+  all(...params: unknown[]): unknown[];
+}
 
-export function getDb(dbPath: string = process.env.SENTINEL_DB_PATH ?? "./data/sentinel.db"): Database.Database {
+export interface SentinelDb {
+  prepare(sql: string): Stmt;
+  pragma(pragma: string): unknown;
+  exec(sql: string): void;
+  transaction<T extends (...args: any[]) => any>(fn: T): T;
+  close(): void;
+}
+
+function wrap(raw: DatabaseSync): SentinelDb {
+  return {
+    prepare(sql: string): Stmt {
+      const stmt = raw.prepare(sql);
+      return {
+        run: (...params: unknown[]) => stmt.run(...(params as never[])) as never,
+        get: (...params: unknown[]) => stmt.get(...(params as never[])),
+        all: (...params: unknown[]) => stmt.all(...(params as never[])) as unknown[],
+      };
+    },
+    pragma(pragma: string): unknown {
+      return raw.exec(`PRAGMA ${pragma}`);
+    },
+    exec(sql: string): void {
+      raw.exec(sql);
+    },
+    transaction<T extends (...args: any[]) => any>(fn: T): T {
+      return ((...args: unknown[]) => {
+        raw.exec("BEGIN");
+        try {
+          const result = fn(...args);
+          raw.exec("COMMIT");
+          return result;
+        } catch (err) {
+          raw.exec("ROLLBACK");
+          throw err;
+        }
+      }) as T;
+    },
+    close(): void {
+      raw.close();
+    },
+  };
+}
+
+let db: SentinelDb | null = null;
+
+export function getDb(dbPath: string = process.env.SENTINEL_DB_PATH ?? "./data/sentinel.db"): SentinelDb {
   if (db) return db;
 
   const dir = dirname(dbPath);
@@ -34,9 +82,10 @@ export function getDb(dbPath: string = process.env.SENTINEL_DB_PATH ?? "./data/s
     mkdirSync(dir, { recursive: true });
   }
 
-  db = new Database(dbPath);
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
+  const raw = new DatabaseSync(dbPath);
+  raw.exec("PRAGMA journal_mode = WAL");
+  raw.exec("PRAGMA foreign_keys = ON");
+  db = wrap(raw);
   return db;
 }
 

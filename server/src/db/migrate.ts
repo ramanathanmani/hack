@@ -10,11 +10,11 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type Database from "better-sqlite3";
+import type { SentinelDb } from "./connection.js";
 
 const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), "migrations");
 
-export function migrate(db: Database.Database): string[] {
+export function migrate(db: SentinelDb): string[] {
   db.exec(
     `CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY, applied_at INTEGER NOT NULL)`
   );

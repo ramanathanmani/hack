@@ -10,8 +10,7 @@
  * own tick loop (architecture.md §1 bullet 2).
  */
 
-import type Database from "better-sqlite3";
-import { getDb } from "./db/connection.js";
+import { getDb, type SentinelDb } from "./db/connection.js";
 import { buildNextEntry, verifyChain, type ChainRow, type ChainVerifyResult } from "./domain/chain.js";
 import { remainingMs, freezeFields, resumeFields } from "./domain/clock.js";
 import { isFreezable, isResumable } from "./domain/sessions.js";
@@ -174,9 +173,9 @@ function toVerdict(row: VerdictRow): Verdict {
 // ---------------------------------------------------------------------------
 
 export class Repo {
-  private db: Database.Database;
+  private db: SentinelDb;
 
-  constructor(db: Database.Database = getDb()) {
+  constructor(db: SentinelDb = getDb()) {
     this.db = db;
   }
 
