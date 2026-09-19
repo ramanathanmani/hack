@@ -29,7 +29,7 @@
 - fallbacks: PS03 (AI-driven OSM), PS04 (Digital inclusion, rural HE)
 - repo_url: https://github.com/ramanathanmani/hack (branch: main)
 - preview_url: BLOCKED: outbound TCP/UDP port 7844 to Cloudflare edge not permitted in this sandbox (HTTP-CONNECT-only egress proxy, port 443 only) — cloudflared installed and ran successfully, printed a real trycloudflare.com hostname, but the tunnel data connection could never establish; see deploy.md §4-5 for exact logs/evidence and the exact commands a human on an unrestricted network can run to finish this in under a minute. LOCAL (`npm run build && npm start` -> http://127.0.0.1:8080) is fully working, re-verified live in this session.
-- demo_freeze: false
+- demo_freeze: true
 - hours_total: ~3h to the Round 1 cut on Day 1 (10:30 → 13:30 IST, 09 Oct), then evening off-venue,
   then Day 2 finale presentations from 09:00
 - hours_remaining: N/A, pre-event reference-prototype build (real event in 20 days: 09–10 Oct)
