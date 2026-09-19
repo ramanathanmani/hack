@@ -6,8 +6,8 @@
 - track: Technical
 - phase: PROBLEM (complete) — held before RESEARCH/SPEC
 - status: blocked
-- last_agent: hackathon-conductor (ran INTAKE + PROBLEM directly; see note)
-- next_agent: research-scout (on unblock)
+- last_agent: research-scout
+- next_agent: spec-author
 - chosen_problem: PS06 — Resilient & Trustworthy Online Assessment Ecosystem
 - chosen_idea: Live exam-integrity control tower — one vertical slice of
   Prevention → Detection → Response → Recovery → Trust
@@ -37,6 +37,11 @@
 - /home/user/hack/.hackathon/problem.md — PS selection with scoring table, golden path, scope fence,
   kill criteria
 - /home/user/hack/.hackathon/decisions.md — D1–D5
+- /home/user/hack/.hackathon/research.md — stack recommendation (Node/TS + SQLite + hand-rolled
+  SHA-256 hash chain + WebSocket dashboard + React/Vite + synthetic telemetry simulator), all fully
+  self-contained/offline, no external accounts or API keys required; gap/mock strategy for missing
+  real exam-center telemetry and any comms provider; blockchain and hosted-DB options evaluated and
+  rejected as unnecessary external-dependency risk
 - /home/user/hack/.hackathon/archive-ibm-bob2/ — previous, unrelated run
 
 ## Notes
