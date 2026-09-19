@@ -13,21 +13,26 @@ asks for, and drafts the Devpost-style text fields from content other agents alr
 
 | # | Required item | Status | What exists |
 |---|---|---|---|
-| 1 | Solution Synopsis / Executive Summary (file, mandatory) | **MISSING — no dedicated file** | No standalone synopsis file has been produced. The content exists in prose form inside `.hackathon/pitch.md` §1–3 (Hook/Problem/Insight) and the "30-second version" (§8), and could be exported to a 1-page PDF, but nobody has generated that PDF/doc artifact yet. **Do not claim this item is done.** |
-| 2 | Solution Presentation, PDF (file, mandatory) | **MISSING — no PDF exists** | No slide deck or PDF file exists anywhere in this repo. `.hackathon/pitch.md` has the narrative content a deck would be built from (hook, problem, insight, product, rubric mapping, 30-second version) but it has never been laid out as slides or exported to PDF. This is a real gap, not a formatting nuance. |
-| 3 | Problem Statement & Proposed Solution (file, mandatory) | **PARTIAL — content exists, not packaged as a submission file** | `.hackathon/problem.md` (PS06 selection, scoring, golden path, scope fence) and `.hackathon/pitch.md` §2–4 cover this in full prose. Neither has been exported/renamed into a submission-ready file under the 1 MB cap; the content is real, the packaging step is not done. |
-| 4 | Innovation & Differentiation Note (file, mandatory) | **PARTIAL — content exists, not packaged** | `.hackathon/pitch.md` §6 "Innovation & Originality — 20" is the differentiation note verbatim. Not exported as a separate submission file. |
-| 5 | Impact & Benefits Document (file, mandatory) | **PARTIAL — content exists, not packaged** | `.hackathon/pitch.md` §6 "Impact on Higher Education / Governance — 15" covers this. `.hackathon/judge-scorecard.md` also flags that the ₹850/candidate cost figure is self-invented and unvalidated by MPOnline — disclose this honestly if this document is produced, do not present ₹17,850 as a sourced number. |
-| 6 | Implementation / Feasibility Plan (file, mandatory) | **PARTIAL — content exists, not packaged** | `.hackathon/plan.md` (ordered backlog T00–T102, 4 milestone gates) and `.hackathon/pitch.md` §7 ("What's next — one realistic week") cover this. Not exported as a standalone submission file. |
+| 1 | Solution Synopsis / Executive Summary (file, mandatory) | **EXISTS** | `.hackathon/submission/01-solution-synopsis.md` — synthesized from `pitch.md` §1–3 and §8, not new claims. |
+| 2 | Solution Presentation, PDF (file, mandatory) | **EXISTS** | `.hackathon/submission/02-solution-presentation.pdf` — an 8-slide deck (cover + 7 content slides) built with reportlab from `pitch.md`'s content, ~10 KB, well under the 1 MB cap. Verified as a structurally valid PDF (correct header, 8 page objects); not pixel-rendered/eyeballed in this pass — recommend a quick human open-and-look before upload. |
+| 3 | Problem Statement & Proposed Solution (file, mandatory) | **EXISTS** | `.hackathon/submission/03-problem-statement-and-solution.md` — synthesized from `problem.md` and `pitch.md` §2–4. |
+| 4 | Innovation & Differentiation Note (file, mandatory) | **EXISTS** | `.hackathon/submission/04-innovation-differentiation.md` — includes the honest "no AI" limitation from `pitch.md`/`judge-scorecard.md`, not softened. |
+| 5 | Impact & Benefits Document (file, mandatory) | **EXISTS** | `.hackathon/submission/05-impact-benefits.md` — states plainly that the ₹850/candidate figure is an invented illustrative constant, per `judge-scorecard.md`'s finding; does not present ₹17,850 as a sourced number. |
+| 6 | Implementation / Feasibility Plan (file, mandatory) | **EXISTS** | `.hackathon/submission/06-implementation-feasibility-plan.md` — synthesized from `plan.md` and `pitch.md` §7, with the same risk caveats carried forward. |
 | 7 | Technology Architecture / Technical Approach (file, **required for Technical track**) | **EXISTS** | `.hackathon/architecture.md` (full design: data model, API, folder map, SQL schema, hash rule, risks, scalability answer) and its submission-facing copy at `docs/architecture.md`. Real content, ready to attach — confirm it is under the 1 MB cap before upload (it is markdown text; well under). |
 | 8 | Prototype / Demo / Proof of Concept (file, mandatory) | **EXISTS** | `demo/sentinel-golden-path.webm` — a real Playwright screen recording of the actual running product (kill → freeze → reconnect → partial-extension verdict → `/audit` → verify PASS → tamper → verify FAIL), compressed to ~330 KB (VP8/WebM), under the 1 MB cap. Note: format is WebM, not MP4, because no libx264/MP4 encoder was available in the build sandbox (see `qa.md` "fallback demo video"); convert to MP4 if the portal strictly requires it. |
 | 9 | Code Repository URL (URL field, **required for Technical track**) | **EXISTS** | `https://github.com/ramanathanmani/hack`, branch `main`. Confirmed pushed and `HEAD == origin/main` in `.hackathon/git.md`. |
 | 10 | "Why Should This Solution Be Selected?" (free-text area, mandatory) | **DRAFTED BELOW** | No prior agent wrote this exact field. Draft text in §3 below, assembled from `pitch.md`'s existing claims — review before pasting into the portal, especially the caveats judge-scorecard.md raised (see §4). |
 
-**Bottom line: items 7, 8, 9 are genuinely ready to submit as-is. Items 1–6 and 10 have real,
-truthful underlying content in this repo but have never been exported into the discrete
-document/PDF artifacts the portal's 10-item form expects — that packaging work (writing/laying out
-6 separate files, each ≤1 MB) has not been done by any prior agent and is outstanding.**
+**Update: items 1–6 have now been exported as standalone files under `.hackathon/submission/`**
+(done after this checklist was first written — content was synthesized from existing
+pitch.md/problem.md/plan.md prose, no new claims invented; the PDF is a plain reportlab slide
+export, not designed by a human). **Bottom line: items 1–9 are all ready to submit as-is.**
+**Item 10** is drafted below and just needs a human read-through before pasting into the portal
+(it carries the same "illustrative cost figure" and "no AI" caveats the rest of this kit discloses,
+per §4 below). Two remaining honest gaps outside this checklist's 10 items: no live preview URL
+(sandbox network limit, see deploy.md) and no human eyeballing of the PDF's actual rendered layout
+(only structurally validated — 8 valid page objects, correct header — not visually reviewed).
 
 ### STATE.md status
 

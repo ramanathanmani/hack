@@ -4,19 +4,18 @@
 - event_name: MPOnline Idea & Innovation Hackathon 2026
 - event_dates: 09–10 October 2026, in-person, SSRGSP Bhopal (starts 09:00 IST, hack begins 10:30)
 - track: Technical
-- phase: SUBMIT (blocked)
+- phase: SUBMIT (complete, one blocker remains)
 - status: blocked
-- last_agent: readme-submit
-- next_agent: conductor-decision — two independent blockers now on record: (1) DEPLOY: no
-  shareable preview URL (devops-deploy, sandbox egress restriction, see deploy.md §4-5); (2) SUBMIT:
-  six of MPOnline's ten mandatory submission files (Solution Synopsis, Solution Presentation PDF,
-  Problem Statement & Proposed Solution, Innovation & Differentiation Note, Impact & Benefits
-  Document, Implementation/Feasibility Plan — intake.md §5 items 1-6) do not exist as discrete
-  files/PDFs in this repo. Their underlying content exists in pitch.md/problem.md/plan.md but has
-  never been exported into the separate ≤1MB artifacts the portal's upload form requires. See
-  submit.md §1/§4 for the full checklist and gap list. Someone must author/export those 6 files
-  before the portal submission can actually be completed; README.md and the ready items
-  (architecture doc, demo video, repo URL) are done.
+- last_agent: conductor
+- next_agent: pm-timebox (FREEZE)
+- submission_kit: all 10 items in intake.md §5 now exist. Items 1-6 exported to
+  `.hackathon/submission/*.md` + `02-solution-presentation.pdf` (synthesized from
+  pitch.md/problem.md/plan.md, no new claims). Items 7-9 (architecture doc, demo video, repo URL)
+  were already done. Item 10 drafted in submit.md §3, needs a human read-through before pasting
+  into the actual portal.
+- remaining blocker: DEPLOY — no shareable preview URL (sandbox egress restriction on port 7844,
+  see deploy.md §4-5; a 6-command fix on an unrestricted network). This is an environment
+  limitation, not a product defect; the local build is fully working and browser-verified.
 - stack: Node.js 22 + TypeScript · Fastify 5 + raw `ws` · SQLite via better-sqlite3 (single file,
   forward-only .sql migrations) · hand-rolled SHA-256 hash chain (node:crypto), sharded per center ·
   React 19 + Vite 6 + plain CSS · deterministic seeded telemetry simulator · npm workspaces
