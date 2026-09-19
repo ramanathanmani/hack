@@ -19,7 +19,7 @@
 - demo_freeze: false
 - hours_total: ~3h to the Round 1 cut on Day 1 (10:30 → 13:30 IST, 09 Oct), then evening off-venue,
   then Day 2 finale presentations from 09:00
-- hours_remaining: N/A — event is 20 days out
+- hours_remaining: N/A, pre-event reference-prototype build (real event in 20 days: 09–10 Oct)
 
 ## blockers (human/process only — do not block BUILD; see decisions.md D6)
 1. **Rules conflict, needs eventual human confirmation.** FAQ: project/code/design/idea/content "must
