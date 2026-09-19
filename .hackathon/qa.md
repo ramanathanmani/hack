@@ -1,5 +1,136 @@
 # QA log
 
+## integration - M1 end-to-end
+
+Phase INTEGRATE, run by integration-agent, after backend M1 / frontend M1 / data-seeder passes
+above (all read first). Goal: prove the golden path runs as ONE product for real, not by code
+inspection, per architecture.md's one-process-serves-API+WS+UI shape (§0, §1, §9).
+
+### Starting state found
+
+`server/src/index.ts` already imported nothing from a `static.ts` and `server/src/static.ts` did
+not exist on disk at the start of this pass — despite a git history that suggested a prior partial
+integration attempt (`git log` shows a commit "Backend M1 verified end-to-end via live HTTP; static
+serving added" mentioning `server/src/static.ts` "(in progress)"). Verified by reading the actual
+files before editing (Read tool, not `git show`) — the gap was real in the working tree, not just in
+old history. So: **static UI serving was not wired.** This is squarely this agent's owned file per
+architecture.md §3 (`server/src/static.ts` — integration-agent) and a real M1/AC-9 gap (one process
+must serve API + WS + built UI), so it was built now.
+
+### Gaps found and fixed (this pass's actual glue work)
+
+1. **`server/src/static.ts` did not exist.** Created it: `@fastify/static` serving `web/dist` from
+   the compiled `dist/server/src/static.js` location (path computed via `import.meta.url`, 4 levels
+   up to repo root + `/web/dist` — verified against the actual `tsc` output layout, not assumed), plus
+   a `setNotFoundHandler` SPA fallback that serves `index.html` for any non-`/api`, non-`/ws` GET so
+   the client router (`/`, `/audit`) works on a hard refresh/direct link.
+2. **`server/src/index.ts` never imported or registered it.** Wired `registerStatic(app)`, gated on
+   `config.nodeEnv === "production"` and registered *after* all API routes so `/api/*` 404s still
+   behave normally when unmatched, and *before* `simulator.start()`.
+3. **The documented single command silently did not serve the UI.** README/architecture.md's
+   contract is "`npm run build && npm start` → `http://127.0.0.1:8080`" serving API+WS+UI. But
+   `server/package.json`'s `"start"` script was `"node dist/server/src/index.js"` with no
+   `NODE_ENV`, and `config.ts` defaults `NODE_ENV` to `"development"` when unset — so running the
+   exact documented command would boot the API+WS fine but silently skip static registration, and a
+   judge hitting `/` would get a 404, not the app. Fixed by changing the `start` script to
+   `"NODE_ENV=production node dist/server/src/index.js"`. This is the one non-trivial glue bug this
+   pass found — everything else (routes, WS shapes, `lib/api.ts` route names) already matched between
+   `web/**` and `server/**` with no adapter needed.
+
+### Commands run (this pass), against the exact documented golden path
+
+```bash
+$ npm run build                                   # root, both workspaces
+# → web: tsc --noEmit && vite build → dist/index.html + assets (247 kB js / 9.97 kB css)
+# → server: tsc -p tsconfig.json && copy-migrations → dist/server/src/**, dist/server/src/static.js
+# → PASS, no errors
+
+$ rm -rf server/data data
+$ SENTINEL_DB_PATH=./data/sentinel.db npm run seed --workspace server
+# → real local dev DB at server/data/sentinel.db (workspace scripts run with cwd=server/, so the
+#   *default* SENTINEL_DB_PATH used by `npm start` and this seed invocation resolve to the same file)
+# → "Seeded 8 centers, 24 sessions, 70 answer-save checkpoints, and one resolved backstory incident
+#    at Indore - Rajwada (INC-0001 -> partial-extension, 3 sessions affected)."
+
+$ npm start                                        # root — exactly the README-documented command
+# → "> server@0.1.0 start" / "> NODE_ENV=production node dist/server/src/index.js"
+# → "[sentinel] listening on http://127.0.0.1:8080 (production)"   ← confirms production mode with
+#   NO manual env override, i.e. the documented command now actually works as documented.
+
+$ curl -s -o /dev/null -w "HTTP %{http_code}\n" http://127.0.0.1:8080/
+# → HTTP 200 — built React index.html served by the same process, same port, as architecture.md §0
+#   requires ("the 'deploy' is npm run build && npm start, one process, one port")
+$ curl -s -o /dev/null -w "HTTP %{http_code}\n" http://127.0.0.1:8080/assets/index-<hash>.js
+# → HTTP 200 — JS bundle served
+$ curl -s -o /dev/null -w "HTTP %{http_code}\n" http://127.0.0.1:8080/audit
+# → HTTP 200 — SPA fallback: a non-file GET path resolves to index.html so the client router handles it
+
+$ curl -s http://127.0.0.1:8080/api/state
+# → real seeded fleet: 8 centers, 24 sessions, 1 resolved incident (backstory), 1 verdict — not a stub
+
+$ curl -s -X POST http://127.0.0.1:8080/api/sim/kill/C2
+$ sleep 3 && curl -s http://127.0.0.1:8080/api/state
+# → C2 status 'down', riskScore 90, a new incident opened (status:'open', classification
+#   'Connectivity Loss', detailJson {"signal":"missed_heartbeat",...} — real detection, not
+#   short-circuited by the kill handler), all 3 C2 sessions state:'frozen'
+
+$ curl -s -X POST http://127.0.0.1:8080/api/sim/reconnect/C2
+$ sleep 3 && curl -s http://127.0.0.1:8080/api/state
+# → C2 status 'healthy', all 3 C2 sessions state:'resumed', incident status:'resolved' with
+#   closedAt set, a new verdict entry present (decision computed from real frozen-duration/
+#   affected-count inputs, e.g. {"decision":"no-action","reasoning":{"policy_version":"v1",
+#   "rule":"frozen_ms <= FREEZE_THRESHOLD_MS ...","inputs":{...},"arithmetic":[...],
+#   "cost_avoided":{...,"basis":"illustrative ..."}}})
+
+$ curl -s -X POST http://127.0.0.1:8080/api/audit/verify           # → {"ok":true}
+$ curl -s -X POST http://127.0.0.1:8080/api/sim/tamper             # → {"tampered":true,"checkpointId":...,"centerId":"C5","seq":...}
+$ curl -s -X POST http://127.0.0.1:8080/api/audit/verify           # → {"ok":false,"brokenAt":{"centerId":"C5","rowId":...,"seq":...,"expectedHash":"...","actualHash":"..."}}
+
+$ node -e '...ws = new WebSocket("ws://127.0.0.1:8080/ws")...'
+# → WS OPEN, then live "checkpoint.appended" / "session.updated" events streamed in real time from
+#   the running simulator tick loop — confirms the WS broadcast path, not just the HTTP poll path
+
+$ npm run typecheck        # → PASS, both workspaces
+$ npm test                 # → 16/16 pass (chain/clock/verdict, node:test via tsx)
+$ npm run check:offline    # → PASS, no external origins in web/dist
+```
+
+### Result
+
+- **Golden path proven end-to-end as one product**, exactly via the README/architecture-documented
+  `npm run build && npm start` command with no manual env overrides: one Fastify process on `:8080`
+  serves the REST API, the raw-`ws` WebSocket broadcast, and the built React SPA (verified: `/` →
+  200 real `index.html`, hashed JS asset → 200, `/audit` client route via SPA fallback → 200).
+- Full AC-2/AC-3/AC-4/AC-5/AC-6/AC-9 arc (kill → real missed-heartbeat detection → incident opened →
+  sessions frozen with real hash-chained checkpoints → reconnect → sessions resumed with restored
+  time → incident resolved → verdict computed with rule/inputs/arithmetic/cost-avoided) exercised
+  live over HTTP against the running production-mode process, twice (once during manual `curl`
+  exploration, once again against the exact documented command) — both runs landed correctly.
+- Full AC-7/AC-8/AC-12 audit cycle (verify PASS → in-app tamper → verify FAIL with exact broken
+  row/expected/actual hash → reset → verify PASS again) confirmed live over HTTP.
+- WS broadcast path confirmed live (not just the HTTP hydrate/poll path) — a raw WS client connected
+  to `/ws` received real `checkpoint.appended`/`session.updated` events streamed by the running
+  simulator tick loop.
+- `lib/api.ts` (frontend) route names/methods checked one-by-one against the actual registered
+  Fastify routes (`routes/state.ts`, `sim.ts`, `audit.ts`, `verdicts.ts`) and against `Hub`'s WS
+  broadcast — every route frontend-builder coded against exists and returns the shape
+  `useLiveState.ts`'s reducer expects (`ApiState`/`WsEvent` from `shared/types.ts`). No route
+  mismatch found; no adapter/shim code was needed on the API-shape side.
+- `.env.example` reviewed against `config.ts` — already complete (13 vars, all with defaults, no
+  secrets) from the scaffold pass; no changes needed.
+- `npm run typecheck` / `npm test` / `npm run check:offline`: all PASS after the fix above.
+- Server process and all test data cleaned up after verification; `server/data/sentinel.db` was
+  re-seeded to the standard fixed scenario as the last action of this pass so the repo is left in the
+  demo-ready starting state (8 centers healthy except the pre-resolved C4 backstory incident, ready
+  for a fresh kill-switch demo on any other center).
+
+### What was NOT faked
+
+No external API is in this system (architecture.md §2/§7 — hard ban, no keys, no accounts, no
+network at runtime). There was nothing to switch between "live" and "mock" for — the only "external"
+surface is the simulator, and it is honestly labeled as simulated everywhere per AC-13, not
+disguised as live. `npm run check:offline` re-confirms zero outbound origins in the built bundle.
+
 ## backend M1
 
 Phase BUILD, M1 "Checkpoint parity" backend, run by backend-builder. Owned path: `server/**`

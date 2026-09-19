@@ -4,11 +4,10 @@
 - event_name: MPOnline Idea & Innovation Hackathon 2026
 - event_dates: 09–10 October 2026, in-person, SSRGSP Bhopal (starts 09:00 IST, hack begins 10:30)
 - track: Technical
-- phase: BUILD (Phase 0 SCAFFOLD complete; frontend M1 complete, backend M1 landed, data-seeder pass complete)
+- phase: INTEGRATE (M1 gate T1G: PASSED — full golden path proven end-to-end as one running process)
 - status: in_progress
-- last_agent: data-seeder
-- next_agent: integration-agent (re-verify full stack end-to-end against seeded data), then
-  test-runner / debugger as needed
+- last_agent: integration-agent
+- next_agent: test-runner
 - stack: Node.js 22 + TypeScript · Fastify 5 + raw `ws` · SQLite via better-sqlite3 (single file,
   forward-only .sql migrations) · hand-rolled SHA-256 hash chain (node:crypto), sharded per center ·
   React 19 + Vite 6 + plain CSS · deterministic seeded telemetry simulator · npm workspaces
@@ -129,6 +128,38 @@
   `npm run build && npm start` end-to-end against this seeded data to confirm the UI renders the
   populated golden path (healthy fleet + one resolved incident/verdict visible immediately, plus a
   live center available for the kill-switch demo).
+
+## Integration M1 end-to-end status (INTEGRATE, integration-agent — M1 gate T1G: PASSED)
+- Found and fixed the real gap flagged above: `server/src/static.ts` did not exist, so
+  `server/src/index.ts` never served the built UI. Created `static.ts` (`@fastify/static` on
+  `web/dist`, computed from `import.meta.url` against the actual compiled `dist/` layout, plus a
+  SPA-fallback `setNotFoundHandler`) and wired it into `index.ts`, gated on `NODE_ENV=production`,
+  registered after all API routes and before `simulator.start()`.
+- Found and fixed a second gap: `server/package.json`'s `start` script did not set `NODE_ENV`, so
+  the README/architecture-documented `npm run build && npm start` command would boot the API+WS but
+  silently skip static registration (config.ts defaults `NODE_ENV` to `development`). Changed
+  `start` to `"NODE_ENV=production node dist/server/src/index.js"` so the documented command now
+  actually serves API + WS + UI from one process on one port, as architecture.md §0 requires.
+- Re-verified `lib/api.ts` route names/methods one-by-one against the actual registered Fastify
+  routes and `ws/hub.ts`'s broadcast shape — no mismatch found, no adapter code needed.
+- Proved the full golden path live, over HTTP, against the exact documented command
+  (`npm run build && npm start`, no manual env overrides): `/` serves the real built `index.html`
+  (200), a hashed JS asset (200), and `/audit` resolves via SPA fallback (200); `GET /api/state`
+  returns the real seeded fleet (8 centers / 24 sessions / 1 resolved backstory incident+verdict);
+  kill→real missed-heartbeat detection→incident opened→sessions frozen with real checkpoints→
+  reconnect→sessions resumed with restored time→incident resolved→verdict computed, all confirmed
+  via curl; `/api/audit/verify` PASS→tamper→verify FAIL with exact broken row→reset→PASS again,
+  confirmed via curl; a raw WS client connected to `/ws` received live `checkpoint.appended`/
+  `session.updated` events from the running simulator (not just the HTTP poll path).
+- `npm run typecheck`, `npm test` (16/16), `npm run check:offline`: all PASS after the fixes.
+- `.env.example` reviewed against `config.ts`: already complete, no changes needed. No external API
+  exists in this system to switch live/mock — the only simulated surface is the telemetry simulator,
+  already honestly labeled (AC-13); nothing was faked.
+- Repo left in the standard demo-ready seeded state (`server/data/sentinel.db` re-seeded as the last
+  action). Full commands and output in `.hackathon/qa.md` under "integration - M1 end-to-end".
+- **M1 gate T1G: PASSED.** Golden path runs end-to-end as one product, for real, in this environment.
+- **Next:** test-runner (M1 AC re-verification + repo-wide gates per architecture.md §10/§11), then
+  debugger only if a P0 surfaces.
 
 ## Artifacts
 - /home/user/hack/.hackathon/specs/spec-a.md — "Sentinel": full 5-stage loop, multi-center grid, incident
