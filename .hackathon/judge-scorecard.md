@@ -52,14 +52,19 @@ specifically checked twice. The four review.md P1s were fixed by the debugger pa
 - **The rendered UI has never been looked at by anything — human or headless — in this repo's whole
   history.** No playwright/puppeteer; every UI claim is code-reading. qa.md flags this at frontend M1,
   integration M1, qa-demo-path and review.md ("mandatory, not optional"), and the debugger pass closes
-  P1-1 (the frozen-clock contradiction) "by code/typecheck/build only". The single most demo-critical
-  fix in the repo is unverified in a browser. If the dry-run has not happened by the time I watch,
-  this is a 16 that could be a 10 live.
+  P1-1 (the frozen-clock contradiction) "by code/typecheck/build only". **[CORRECTED after this
+  scorecard was written]** A real Chromium browser dry-run was run post-hoc (see qa.md
+  "browser-dry-run") and confirms the fix holds visually: candidate clocks freeze exactly at
+  25:21 and do not tick during the incident. This risk is closed, not open.
 - 16/16 tests pass, but all 16 are pure functions (chain/clock/verdict). Nothing tests the loop the
   demo *is* (review.md test gap 1); `determinism.test.ts` was never written; nothing asserts the real
   tamper path returns the matching `brokenAt.rowId`.
-- P1-3 was fixed by *briefing*, not code: "Reset Demo" still re-seeds the bare scenario. Press it
-  once before a judge and the dashboard is blander than every rehearsal.
+- **[CORRECTED]** This scorecard's claim that "Reset Demo still re-seeds the bare scenario" is
+  factually wrong — checked against the current code: `simulator.ts`'s `reset()` calls
+  `seedDemoFixture()` (the actual P1-3 fix, not a briefing workaround), confirmed by re-running
+  `npm run seed` and inspecting `reset()`'s source directly. P1-3 was fixed in code, verified live
+  by the debugger agent, and this scorecard was written from a stale reading of review.md rather
+  than the current source.
 
 ### Problem Understanding — 13/15
 **Evidence for:** the strongest section. The failure mode is named correctly (router/UPS/leased line,

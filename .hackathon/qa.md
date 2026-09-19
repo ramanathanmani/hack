@@ -861,3 +861,39 @@ P2-5 (50-row cap vs "Full Chain" label), P2-6 (cumulative `frozenMsTotal` in ver
 (static risk score), P3-9 (dead code) — left as-is per the explicit "P1s + P2-7 only" scope.
 
 **Overall: all 6 checks pass, no failures to report.** No file:line failures — nothing to fix.
+
+## browser-dry-run (conductor, real Chromium via Playwright)
+
+Correction to judge-scorecard.md and every prior agent's disclosed gap: this environment
+DOES have Chromium + Playwright pre-installed (`/opt/pw-browsers`, `playwright` CLI at
+`/opt/node22/bin/playwright`). No prior agent had Bash access broad enough to discover this,
+so the "no browser available" limitation stated in qa.md's earlier sections, review.md, and
+judge-scorecard.md was based on `npm ls playwright` / `which puppeteer` style checks against
+the *project's* dependencies, not the *environment's* global tools. Ran a real headless-Chromium
+pass against the live server (`npm run build && npm run seed --workspace server && npm start`,
+NODE_ENV=production, port 8080) via a standalone script (not added as a project dependency —
+this is a one-off verification tool, not part of the shipped product).
+
+Verified, with screenshots saved to `.hackathon/screenshots/`:
+- `01-initial.png` — Control Tower renders correctly on load: 8 named centers, framing header
+  reads "8 centers · 24 sessions" (matches pitch.md's number-discipline requirement).
+- `02-after-kill.png` — **P1-1 CONFIRMED FIXED IN THE BROWSER, not just by typecheck/build.**
+  Kill switch → incident banner appears, all 3 candidate clocks show 25:21 and read identically
+  3 seconds later (verified programmatically: `clockTexts1 === clockTexts2` → true). "Timer
+  paused. Do not refresh." banner is accurate — the clock actually holds.
+- `04-after-reconnect.png` — after a ~14s hold + Reconnect, page shows "restored" text and a
+  "Partial" verdict — confirms **P1-2 fix holds in the browser**: does NOT show "No Action
+  Needed".
+- `05-audit.png`, `06-verify-pass.png` — Chain Integrity page renders, Verify Chain Integrity
+  produces a real PASS banner.
+- `07-verify-fail.png` — **P1-4 CONFIRMED FIXED IN THE BROWSER.** After Tamper + re-Verify, the
+  FAIL banner shows the exact broken row (center/seq/expected/actual hash), and the chain table
+  shows exactly ONE row marked "Broken" (C1, seq 282) — no duplicate row, confirming the
+  duplicate-checkpoint bug from review.md's P1-4 does not reproduce visually.
+
+No console errors, no page errors, no crashes across the full run. Layout, spacing, and the
+red-quarantined SimulatorControls panel all render as design.md/brand.md specified.
+
+This closes the "zero browser verification, ever" gap that judge-scorecard.md flagged as the
+single biggest score-limiting risk (docked hardest at Prototype-MVP and Presentation).
+Server process stopped after the run; DB re-seeded to the clean fixture state afterward.
