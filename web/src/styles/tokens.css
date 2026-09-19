@@ -23,6 +23,7 @@
   --color-caution-bg: #fbf1de;
   --color-bad: #b3261e; /* red */
   --color-bad-bg: #fbe9e8;
+  --color-bad-strong: #8c1f19; /* darker red for hover/active on danger actions */
   --color-grey: #666666;
   --color-grey-bg: #eeeeee;
 
@@ -38,8 +39,8 @@
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  /* Focus ring */
-  --focus-ring: 2px solid #1a73e8;
+  /* Focus ring — brand accent, not a stray blue, per brand.md single-accent rule */
+  --focus-ring: 2px solid var(--color-accent);
   --focus-ring-offset: 2px;
 }
 

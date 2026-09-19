@@ -168,6 +168,10 @@
   color: inherit;
 }
 
+.center-card:hover {
+  border-color: var(--color-accent);
+}
+
 .center-card[aria-pressed="true"] {
   border-color: var(--color-accent);
   box-shadow: 0 0 0 2px var(--color-accent);
@@ -465,6 +469,11 @@
   cursor: pointer;
 }
 
+.btn:hover:not(:disabled) {
+  background: var(--color-accent-strong);
+  border-color: var(--color-accent-strong);
+}
+
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -475,10 +484,21 @@
   color: var(--color-accent);
 }
 
+.btn--secondary:hover:not(:disabled) {
+  background: var(--color-bg-alt);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
 .btn--danger {
   background: var(--color-bad);
   border-color: var(--color-bad);
   color: #ffffff;
+}
+
+.btn--danger:hover:not(:disabled) {
+  background: var(--color-bad-strong);
+  border-color: var(--color-bad-strong);
 }
 
 .btn--danger.btn--secondary {
@@ -486,6 +506,16 @@
   color: var(--color-bad);
 }
 
+.btn--danger.btn--secondary:hover:not(:disabled) {
+  background: var(--color-bad-bg);
+  border-color: var(--color-bad);
+  color: var(--color-bad);
+}
+
+/* Primary CTA sizing — used for the one action that starts/advances the
+   golden-path demo per screen (Kill Switch on Control Tower, Verify Chain
+   Integrity on Audit). Same size/weight treatment everywhere it appears so
+   a judge always knows which button is "the" button. */
 .btn--large {
   font-size: 16px;
   padding: var(--space-3) var(--space-4);
