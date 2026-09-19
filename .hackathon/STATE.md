@@ -4,10 +4,10 @@
 - event_name: MPOnline Idea & Innovation Hackathon 2026
 - event_dates: 09–10 October 2026, in-person, SSRGSP Bhopal (starts 09:00 IST, hack begins 10:30)
 - track: Technical
-- phase: GIT (complete)
-- status: in_progress
-- last_agent: git-pusher
-- next_agent: devops-deploy
+- phase: DEPLOY (blocked)
+- status: blocked
+- last_agent: devops-deploy
+- next_agent: conductor-decision (proceed to SHOW/SUBMIT on local-only + documented deploy path, or wait for unrestricted-network re-run of deploy.md §5)
 - stack: Node.js 22 + TypeScript · Fastify 5 + raw `ws` · SQLite via better-sqlite3 (single file,
   forward-only .sql migrations) · hand-rolled SHA-256 hash chain (node:crypto), sharded per center ·
   React 19 + Vite 6 + plain CSS · deterministic seeded telemetry simulator · npm workspaces
@@ -20,7 +20,7 @@
   Prevention → Detection → Response → Recovery → Trust
 - fallbacks: PS03 (AI-driven OSM), PS04 (Digital inclusion, rural HE)
 - repo_url: https://github.com/ramanathanmani/hack (branch: main)
-- preview_url: TBD
+- preview_url: BLOCKED: outbound TCP/UDP port 7844 to Cloudflare edge not permitted in this sandbox (HTTP-CONNECT-only egress proxy, port 443 only) — cloudflared installed and ran successfully, printed a real trycloudflare.com hostname, but the tunnel data connection could never establish; see deploy.md §4-5 for exact logs/evidence and the exact commands a human on an unrestricted network can run to finish this in under a minute. LOCAL (`npm run build && npm start` -> http://127.0.0.1:8080) is fully working, re-verified live in this session.
 - demo_freeze: false
 - hours_total: ~3h to the Round 1 cut on Day 1 (10:30 → 13:30 IST, 09 Oct), then evening off-venue,
   then Day 2 finale presentations from 09:00
@@ -182,6 +182,36 @@
 - Full detail, AC-by-AC table, and P2 bug list: `.hackathon/qa.md` under "qa-demo-path".
 - **No blocker set — no P0s found.** Proceeding to HARDEN is safe.
 
+## DEPLOY status (DEPLOY, devops-deploy — BLOCKED, local run verified)
+- Downloaded `cloudflared` v2026.9.1 directly from GitHub Releases (not preinstalled, `apt` has no
+  package for it) — no account/API key needed, binary runs fine (`cloudflared --version` passes).
+- Rebuilt clean (`npm run build`), re-seeded (`npm run seed --workspace server`), started
+  `NODE_ENV=production npm start` in the background, and re-verified `http://127.0.0.1:8080/`,
+  `/api/state`, `/audit` all return real `200`s with real seeded data — local run is solid.
+- Ran `cloudflared tunnel --url http://localhost:8080` (both default QUIC/UDP and `--protocol
+  http2`/TCP transports). Cloudflare's control plane issued a real `*.trycloudflare.com` hostname
+  both times, but the tunnel's data connection never came up: this sandbox's egress only permits
+  outbound TCP/443 through a pre-configured HTTP CONNECT proxy, and cloudflared's edge connection
+  needs TCP-or-UDP **port 7844**, which is neither 443 nor proxyable. Confirmed via cloudflared's
+  own precheck output (`ERROR: Allow outbound TCP on port 7844`) and via this session's own
+  `/root/.ccr/README.md`, which explicitly lists non-443 ports / tunnel clients as unsupported
+  through its proxy. Curling the printed trycloudflare.com URL from outside the local process
+  returned Cloudflare's own edge error (HTTP 530), never the app.
+- **This is an environment egress restriction, not a missing credential and not a product bug.**
+  `ngrok` was not attempted — the same environment doc names it as unsupported for the identical
+  reason, so it would reproduce the same block.
+- Full evidence, exact log lines, and the exact 6-line command sequence for a human on an
+  unrestricted network to get a real `https://*.trycloudflare.com` URL in under a minute:
+  `.hackathon/deploy.md`.
+- **`STATE.md` `preview_url` = `BLOCKED: ...` (see field above), not fabricated.** `phase: DEPLOY
+  (blocked)`.
+- **Next: conductor decision** — either dispatch someone to re-run deploy.md §5 on an unrestricted
+  network (e.g. a teammate's laptop during the real event, which is architecture.md's actual
+  intended demo environment anyway), or explicitly approve proceeding to SHOW/SUBMIT on
+  local-only (`http://127.0.0.1:8080`, fully verified) with this blocker documented and disclosed,
+  per CLAUDE.md ("Blocked (not done) if this environment cannot deploy... Do not pretend DEPLOY
+  succeeded").
+
 ## Artifacts
 - /home/user/hack/.hackathon/specs/spec-a.md — "Sentinel": full 5-stage loop, multi-center grid, incident
   classification, interactive tamper-and-verify demo. Higher wow, higher build risk under the 3h Round-1 clock.
@@ -211,6 +241,11 @@
   real exam-center telemetry and any comms provider; blockchain and hosted-DB options evaluated and
   rejected as unnecessary external-dependency risk
 - /home/user/hack/.hackathon/archive-ibm-bob2/ — previous, unrelated run
+- /home/user/hack/.hackathon/deploy.md — devops-deploy record: local run steps (verified working),
+  env var names, deploy target (self-hosted localhost per architecture.md, cloudflared quick-tunnel
+  as the sanctioned shareable-URL fallback), exact cloudflared install/attempt/failure evidence,
+  exact commands for a human to finish the deploy on an unrestricted network, and the rollback /
+  "API down" demo fallback (kill-switch/reset, not a separate recorded video — none exists yet)
 
 ## Notes
 - Technical rubric shape: Innovation 20 / Prototype 20 / Problem understanding 15 / Technical
