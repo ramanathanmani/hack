@@ -4,10 +4,10 @@
 - event_name: MPOnline Idea & Innovation Hackathon 2026
 - event_dates: 09–10 October 2026, in-person, SSRGSP Bhopal (starts 09:00 IST, hack begins 10:30)
 - track: Technical
-- phase: ARCHITECTURE (complete)
+- phase: BUILD (Phase 0 SCAFFOLD complete)
 - status: in_progress
-- last_agent: architect
-- next_agent: planner
+- last_agent: integration-agent (scaffold)
+- next_agent: backend-builder + frontend-builder (parallel fork, per plan.md Phase 0 fork point)
 - stack: Node.js 22 + TypeScript · Fastify 5 + raw `ws` · SQLite via better-sqlite3 (single file,
   forward-only .sql migrations) · hand-rolled SHA-256 hash chain (node:crypto), sharded per center ·
   React 19 + Vite 6 + plain CSS · deterministic seeded telemetry simulator · npm workspaces
@@ -36,6 +36,25 @@
    paid non-refundable registration. Outside this session's control; does not block building the
    product itself.
 3. Registration close date, submission-lock deadline (+timezone) and fee are UNKNOWN.
+
+## Scaffold status (Phase 0, plan.md T00–T05 — complete)
+- Root npm workspaces (`server`, `web`) + `tsconfig.base.json` + `.env.example` (13 vars) +
+  `.gitignore` landed. `npm install` succeeds (197 packages).
+- `shared/types.ts` is the single source of truth for Center/CandidateSession/Incident/Checkpoint/
+  Verdict/WsEvent/ApiState shapes — both workspaces typecheck against it.
+- `server/src/db/connection.ts` (better-sqlite3 wrapper, WAL + foreign_keys) + `db/migrate.ts` +
+  `db/migrations/001_init.sql` (full schema per architecture.md §4) — smoke-tested: migration runs,
+  all 7 tables created, native module loads (`node -e "require('better-sqlite3')"` succeeds on
+  v22.22.2). node:sqlite fallback plan is documented as a comment in connection.ts, not implemented.
+- `web/vite.config.ts` has the dev proxy (`/api`, `/ws` → :8080) + `@shared` alias; `web/src/main.tsx`
+  is a placeholder pending frontend-builder.
+- `npm run typecheck` (both workspaces) and `npm run build` (web + server) both pass on the
+  placeholder code. `npm start` is not runnable yet — `server/src/index.ts` doesn't exist yet, that's
+  backend-builder's first real file.
+- Full commands/results recorded in `.hackathon/qa.md` under "integration - scaffold".
+- **Fork point reached:** `server/**` and `web/**` are disjoint from here. backend-builder should
+  start with `domain/chain.ts` + `chain.test.ts` per architecture.md §14 (first code written, because
+  AC-7/AC-8 fail silently and late otherwise).
 
 ## Artifacts
 - /home/user/hack/.hackathon/specs/spec-a.md — "Sentinel": full 5-stage loop, multi-center grid, incident

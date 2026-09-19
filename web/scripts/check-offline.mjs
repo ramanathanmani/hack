@@ -5,7 +5,16 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const DIST = new URL("../dist", import.meta.url).pathname;
-const OFFENDER = /https?:\/\/(?!127\.0\.0\.1|localhost)/;
+
+// Known-safe strings that are not runtime network calls:
+//  - XML/SVG/MathML namespace URIs (React/DOM constants, never fetched)
+//  - react.dev/errors/ links embedded in minified error messages (doc links
+//    shown in console text, never requested by the app)
+const SAFE = [
+  /https?:\/\/www\.w3\.org\//,
+  /https?:\/\/react\.dev\/errors\//,
+];
+const OFFENDER = /https?:\/\/(?!127\.0\.0\.1|localhost)\S+/g;
 
 function walk(dir) {
   let files = [];
@@ -31,14 +40,19 @@ try {
 const offenders = [];
 for (const file of files) {
   const text = readFileSync(file, "utf8");
-  if (OFFENDER.test(text)) {
-    offenders.push(file);
+  const matches = text.match(OFFENDER) ?? [];
+  const bad = matches.filter((m) => !SAFE.some((safe) => safe.test(m)));
+  if (bad.length > 0) {
+    offenders.push({ file, bad: [...new Set(bad)] });
   }
 }
 
 if (offenders.length > 0) {
   console.error("check:offline FAIL — external origin(s) found in:");
-  offenders.forEach((f) => console.error("  " + f));
+  offenders.forEach(({ file, bad }) => {
+    console.error("  " + file);
+    bad.forEach((b) => console.error("    " + b));
+  });
   process.exit(1);
 }
 
