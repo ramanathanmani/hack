@@ -1,5 +1,156 @@
 # QA log
 
+## qa-demo-path
+
+Phase TEST, run by qa-demo-path, 2026-09-19. Judged as a tired sponsor with 90 seconds. Ran the
+product for real from a clean rebuild — did **not** rely on the earlier passes' logs above, though
+results corroborate them.
+
+**Environment/commands executed, in order:**
+```
+rm -f server/data/sentinel.db
+npm run build                       # both workspaces — PASS, no errors
+npm run seed --workspace server     # PASS — "Seeded 8 centers, 24 sessions, 70 answer-save
+                                     #   checkpoints, and one resolved backstory incident..."
+npm start                           # NODE_ENV=production, root script — PASS, listens on :8080
+```
+Then hit it exactly as a judge/presenter would: curl for `/`, the built JS asset, `/audit` SPA
+fallback, `GET /api/state`; `POST /api/sim/kill/:id` → wait → `GET /api/state`; `POST
+/api/sim/reconnect/:id` → wait → `GET /api/state`; `POST /api/audit/verify` → `POST
+/api/sim/tamper` → `POST /api/audit/verify` → `POST /api/sim/reset` → `POST /api/audit/verify`; a
+raw `ws` client on `/ws` to confirm live push events. Also statically read every `web/src/**`
+component/route file to sanity-check the actual rendered UI logic, since **no browser automation
+tool (playwright/puppeteer) is installed in this environment** — this is a real, disclosed gap; the
+below is HTTP/WS-verified truth plus code-reading for the UI layer, not a screenshot-verified pass.
+
+### Overall verdict: **NO P0s found. Golden path is real and fast.** Two P1s (README staleness /
+missing seed step; stale `/incidents/:id` step in design.md's script), a handful of P2s below.
+
+### Golden-path step-by-step (design.md §1, steps 1–9)
+
+| # | Step | Result | Timing |
+|---|---|---|---|
+| 1 | Land on `/`, see 8 healthy centers + framing header + SimulatorControls | **PASS** | `/` → HTTP 200 real built `index.html` (`<title>Sentinel — Exam Integrity Control Tower</title>`, real `<script>`/`<link>` refs to hashed bundle, not blank); `GET /api/state` in 8ms returns 8 real centers all `healthy`, riskScore 0 (except the seeded backstory center C4 at 15, itself correct — a resolved incident leaves a small residual score) |
+| 2 | Pick a center, click Kill Switch | **PASS** | `POST /api/sim/kill/C1` → `{"ok":true}` |
+| 3 | Center flips red, incident row created within ~1–2s | **PASS** | 2s after kill: C1 `status:"down"`, `riskScore:90`, new incident `INC-0002` `classification:"Connectivity Loss"`, `severity:"medium"`, `detailJson` shows a real `missed_heartbeat` detection signal — not short-circuited by the kill call itself |
+| 4 | All 3 sessions at that center freeze, banner + ledger checkpoint per session | **PASS** | All 3 C1 sessions `state:"frozen"`; `recentCheckpoints` shows 3 new `kind:"freeze"` rows, each with correct `prevHash`→`hash` chain linkage (verified by hand, e.g. session 1's freeze row's `prevHash` matches its prior `answer_save` row's `hash`) |
+| 5 | Click Reconnect, sessions resume, time restored, resume checkpoints appended | **PASS** | `POST /api/sim/reconnect/C1` → 2.5s later: sessions `state:"resumed"`, `frozenMsTotal:18018` (~18s, matching real elapsed wall-clock frozen time), `remainingMs` correctly reflects restored time; incident auto-closed (`status:"resolved"`) |
+| 6 | Click incident row → `/incidents/:id`, see VerdictCard with rule/inputs/arithmetic | **PARTIAL / design-drift, not a functional bug** | There is **no `/incidents/:id` route and no IncidentTimeline component** — `web/src/router.tsx`/`App.tsx` only wire `/` and `/audit`; any other path falls back to `/`. This is a **documented, reasoned deviation**: decision.md's AC-10 only requires `/` to be self-sufficient for the whole arc with `/audit` as the one required stop, and design.md §4 explicitly allows the VerdictCard to render "inline on Control Tower escalation banner" instead. In practice the build took the inline option — `VerdictCard` renders directly on `/` under a "Verdict" panel next to the selected center, no navigation needed. Verified live: after reconnect, a real computed verdict appeared (`decision:"no-action"` for my quick 18s freeze test; the seeded backstory incident at C4 shows `decision:"partial-extension"` with full `rule`/`inputs`/`arithmetic`/`cost_avoided` — e.g. `"47000ms frozen > 30000ms threshold", "0 checkpoints lost", "-> PARTIAL EXTENSION +47s"`, cost-avoided ₹17,850 clearly labeled "illustrative"). **This satisfies AC-6/AC-10 as written, but design.md's own numbered demo script (step 6) describes a click-through that does not exist in the shipped UI** — a presenter who tries to click an "incident row" that isn't there mid-demo will look confused. Flagged as P1 below (documentation/script drift, not a broken feature). |
+| 7 | Go to `/audit`, click Verify Chain Integrity → PASS | **PASS** | `/audit` → HTTP 200 via SPA fallback; `POST /api/audit/verify` → `{"ok":true}` in 13ms — comfortably "near-instant" per design.md's <1s bar |
+| 8 | Click Tamper (simulator) in quarantined panel | **PASS** | `POST /api/sim/tamper` → `{"tampered":true,"checkpointId":242,"centerId":"C7","seq":31}`; server-side `pickTamperTarget()` always targets the single latest checkpoint overall (`ORDER BY id DESC LIMIT 1`), so it's deterministic and always within the client's `recentCheckpoints` (capped at 50, newest-first) — the broken row will visually highlight in the `/audit` chain table in the normal case |
+| 9 | Click Verify again → FAIL, exact broken row shown | **PASS** | `POST /api/audit/verify` → `{"ok":false,"brokenAt":{"centerId":"C7","rowId":242,"seq":31,"expectedHash":"...","actualHash":"..."}}` in 9ms. `Audit.tsx`'s FAIL banner renders the exact center/seq/expected/actual hashes as monospace text regardless of the chain table's scroll state, and the `ChainTable` component highlights the matching row red when it's present in the (client-capped) recent list. Reset (`POST /api/sim/reset`) → verify → `{"ok":true}` again — full PASS→FAIL→PASS cycle confirmed, resettable without restarting the server (AC-12). |
+
+### Acceptance criteria (decision.md AC-1..AC-14)
+
+| AC | Result | Evidence |
+|---|---|---|
+| AC-1 (≥6 centers, live health within 2s) | **PASS** | 8 centers returned, all healthy at rest, `/api/state` responds in single-digit ms |
+| AC-2 (Kill → red + incident within 2s) | **PASS** | confirmed within a 2s sleep window above |
+| AC-3 (sessions → frozen within 2s, banner) | **PASS** | confirmed same window; `CandidatePanel.tsx` renders the exact "Center disrupted. Your progress is saved. Timer paused. Do not refresh." banner for `frozen` state |
+| AC-4 (≥1 checkpoint per session pre-freeze, hash visible) | **PASS** | genesis + answer_save checkpoints exist per session before freeze; hashes present in `recentCheckpoints` and in `LedgerPanel`/`ChainTable` UI (hash shown truncated with full value in `title` attr) |
+| AC-5 (Reconnect → resumed, remaining time restored) | **PASS** | `frozenMsTotal` and `remainingMs` both reflect real elapsed frozen duration, server-computed only (client never counts its own authoritative clock — `SessionClock` snaps to server value on every push per `useEffect` dep array) |
+| AC-6 (verdict computed from real data, rule/inputs/arithmetic/cost-avoided rendered) | **PASS** | verified both live (my 18s test → `no-action`) and seeded backstory (47s → `partial-extension`, ₹17,850 illustrative cost avoided) |
+| AC-7 (`/audit` verify PASS on clean chain) | **PASS** | `{"ok":true}` |
+| AC-8 (post-tamper verify FAIL with exact broken row) | **PASS** | `{"ok":false,"brokenAt":{...}}` with center/seq/expected/actual hash all present |
+| AC-9 (full loop live, one laptop, network disabled) | **PASS** | entire arc run over local HTTP/WS only; `check:offline` (below) confirms zero external origins in the built bundle |
+| AC-10 (`/` self-sufficient, only `/audit` requires navigation) | **PASS** | confirmed by code reading — `ControlTower.tsx` renders CenterGrid + SimulatorControls + CandidatePanel + LedgerPanel + inline VerdictCard, no other navigation required |
+| AC-11 (core loop <60s) | **PASS, with large margin** | kill→incident detected ≈2s, reconnect→resumed+verdict ≈2.5s; the full kill→verdict loop completes in well under 10s server-side. The *human* click-and-narrate time is the real constraint, not the system — comfortably inside 60s for any reasonably paced presenter |
+| AC-12 (deterministic seed, resettable without server restart) | **PASS** | `POST /api/sim/reset` truncates+reseeds live; re-ran seed twice against a scratch DB, identical shape both times; chain re-verifies PASS after reset |
+| AC-13 (every simulated surface visibly labeled) | **PASS** | `SimulatedBadge` rendered on the Control Tower next to the center grid; `SimulatorControls` panel headed "SIMULATOR CONTROLS — not part of the production system" appears identically on both `/` and `/audit` |
+| AC-14 (zero outbound network at runtime) | **PASS** | `npm run check:offline` (re-run this session, see below) — PASS, no external origins in `web/dist` |
+
+### Empty / error / loading states — checked?
+
+- **Empty (`centers.length === 0`):** checked by code reading (`CenterGrid.tsx`, `ControlTower.tsx`) — correct copy shown ("No exam data yet. Run `npm run seed` to start the demo."), no broken skeleton grid. Could not force this state live without deleting all seeded data mid-review, but the guard is a simple, obviously-correct length check.
+- **Loading (`state === null`, pre-hydrate):** `CenterGridSkeleton`/`VerdictCardSkeleton` render grey placeholder cards, no shimmer, matches design.md. Confirmed by code reading; real-world load in this environment is sub-10ms so this state is visually imperceptible on a local demo (as intended).
+- **Error / WS drop → POLLING:** `useLiveState.ts` degrades cleanly to `POLLING (2s)` on WS close/error/timeout without throwing, verified the reducer logic is shared between the WS-push and poll-snapshot code paths (no second code path to rot). Did not physically kill the WS mid-session to watch the pill flip in a real browser (no browser tooling available) — this is a code-verified pass, not a rendered-screenshot pass. Recommend a human do one real-browser dry run before the actual demo to eyeball the POLLING pill and the escalation banner's `aria-live` announcement timing.
+- **Verify-banner neutral/error states:** code-verified — "Not Yet Verified" grey banner before first click (never a false PASS default, per design.md), and a distinct grey "Could not reach server. Try again." banner for a genuine fetch failure, visually separate from the red FAIL state, as required.
+
+### Mobile / narrow viewport
+
+Not applicable per design.md §7 ("No mobile-specific layout/breakpoints below ~768px — this runs on
+one presenter laptop") — explicitly out of scope by design, not a QA gap. `app.css` does have a
+1024px breakpoint for the two-column→single-column layout switch, which is the one responsive rule
+design.md actually asks for; not independently re-verified in a resized browser window (no browser
+tooling), but the CSS itself matches the documented rule.
+
+### Secrets in repo?
+
+**None found.** `git ls-files` shows only `.env.example` tracked (no `.env`); grepped the whole
+tree (excluding `node_modules`) for api-key/secret/password/token/private-key patterns — zero real
+hits, only a comment in `.env.example` itself stating "No secrets exist in this project." `.gitignore`
+correctly excludes `.env`, all `*.db*` files, and `*.log`.
+
+### Can a stranger start from README?
+
+**Mostly yes, but with a real gap — P1.** `README.md`'s "Run locally" section (`npm install` → `cp
+.env.example .env` → `npm run build && npm start`) **does work exactly as documented** — verified by
+running that literal sequence from a clean `rm -f server/data/sentinel.db` state: build passes,
+server boots, `/` serves 200, `/api/state` returns 8 real healthy centers. **But two things will
+mislead or shortchange a stranger:**
+1. README's status line still reads **"Status: scaffold only. Backend/frontend implementation
+   lands next"** — stale by several build phases. A judge/teammate reading the README before
+   running anything will believe the product isn't built yet.
+2. The "Run locally" quickstart never calls `npm run seed` — it's listed later only under "Demo
+   utilities" as if optional. Confirmed live: booting via the documented quickstart alone
+   auto-seeds through `Simulator.start()`'s idempotent empty-DB check, but that path uses the
+   **plain/bare `repo.seedScenario()`** (8 healthy centers, sessions just started, only genesis
+   checkpoints) — **not** the richer, intentional demo fixture `scripts/seed.ts` produces (70
+   answer-save checkpoints, one pre-resolved "backstory" incident + computed verdict at
+   Indore-Rajwada). A stranger following the README literally gets a working but visibly blander
+   dashboard than the one every other build pass in this repo's own qa.md log assumed was the demo
+   starting state, and would not see a live example of a resolved verdict without triggering their
+   own kill→reconnect cycle first.
+
+### Real bugs / risks found this pass
+
+- **P1 — README is stale and omits the seed step from the primary quickstart.** Fix: update the
+  status line, and move `npm run seed` into the "Run locally" sequence (between build and start, or
+  note that `npm start` auto-seeds the *plain* scenario and `npm run seed` is required for the
+  intended "lived-in" demo state).
+- **P1 — design.md's golden-path step 6 ("click the incident row in IncidentTimeline → navigate to
+  `/incidents/:id`") describes UI that does not exist in the shipped build.** The actual UI
+  satisfies the underlying acceptance criteria (AC-6, AC-10) via an inline VerdictCard on `/`
+  instead — which is arguably a *better* demo (zero navigation), but the design doc itself should be
+  corrected (or the presenter must be explicitly briefed) so nobody tries to click a nonexistent
+  incident row live in front of judges.
+- **P2 — Tamper always targets the single latest checkpoint fleet-wide, and the client only keeps
+  the newest 50 checkpoints in `recentCheckpoints`.** With the simulator ticking ~1x/sec and
+  producing multiple checkpoints per tick across 8 centers, roughly 15–20 seconds of presenter delay
+  between clicking Tamper and clicking Verify could scroll the tampered row out of the visible
+  `ChainTable`'s highlighted set (though the FAIL banner's text — center/seq/expected/actual hash —
+  is always correct regardless, since it comes straight from the server response, not from the
+  client-filtered table). Low risk for a fast 90-second demo, but worth knowing if a presenter
+  pauses too long between the two clicks.
+- **P2 — `verify-chain` timing note:** both PASS and FAIL responses returned in single-digit
+  milliseconds in this environment — well under design.md's "Recomputing N hashes..." >1s fallback
+  threshold, so that copy path is effectively dead code for a normal demo (not a bug, just an
+  observation that the loading state is unlikely to ever be seen).
+- **Disclosed gap, not a new bug:** no headless-browser tooling (playwright/puppeteer) exists in
+  this environment, so the actual *rendered* UI (pixel layout, real click interactions, focus rings,
+  aria-live announcements) was verified by careful code reading plus full HTTP/WS-level behavior
+  verification, not by an actual browser screenshot. This has been a known, repeatedly-flagged gap
+  since frontend M1 and integration M1 in the qa.md history above. **Recommend one live human
+  dry-run in an actual browser before presenting**, specifically to eyeball: the escalation banner
+  appearing/dismissing correctly, the POLLING pill on a real WS drop, and the Tamper→FAIL row
+  highlight in the chain table.
+
+### Re-verified repo-wide gates this pass
+
+```
+$ npm run check:offline --workspace web    # PASS — no external origins in web/dist
+$ npm run typecheck                        # PASS, both workspaces (re-run after rebuild)
+```
+
+### Cleanup
+
+Killed the test server process; repo left in the standard demo-ready seeded state (`npm run seed`
+re-run as the final action, matching every prior pass's convention) — 8 centers, 24 sessions, one
+resolved backstory incident+verdict at Indore-Rajwada, ready for a fresh kill-switch demo on any
+other center.
+
+---
+
 ## integration - M1 end-to-end
 
 Phase INTEGRATE, run by integration-agent, after backend M1 / frontend M1 / data-seeder passes

@@ -4,10 +4,10 @@
 - event_name: MPOnline Idea & Innovation Hackathon 2026
 - event_dates: 09–10 October 2026, in-person, SSRGSP Bhopal (starts 09:00 IST, hack begins 10:30)
 - track: Technical
-- phase: INTEGRATE (M1 gate T1G: PASSED — full golden path proven end-to-end as one running process)
+- phase: TEST (test-runner + qa-demo-path both complete — no P0s found, golden path verified live)
 - status: in_progress
-- last_agent: integration-agent
-- next_agent: test-runner
+- last_agent: qa-demo-path
+- next_agent: security-linter (HARDEN phase — see decision below)
 - stack: Node.js 22 + TypeScript · Fastify 5 + raw `ws` · SQLite via better-sqlite3 (single file,
   forward-only .sql migrations) · hand-rolled SHA-256 hash chain (node:crypto), sharded per center ·
   React 19 + Vite 6 + plain CSS · deterministic seeded telemetry simulator · npm workspaces
@@ -160,6 +160,27 @@
 - **M1 gate T1G: PASSED.** Golden path runs end-to-end as one product, for real, in this environment.
 - **Next:** test-runner (M1 AC re-verification + repo-wide gates per architecture.md §10/§11), then
   debugger only if a P0 surfaces.
+
+## QA demo-path status (TEST, qa-demo-path — no P0s)
+- Ran the product for real from a clean rebuild (`rm -f server/data/sentinel.db`, `npm run build`,
+  `npm run seed --workspace server`, `npm start`) and exercised the full golden path via curl/WS
+  exactly as a judge would click through it: `/` (real built HTML, not blank) → kill → detect →
+  freeze/checkpoint → reconnect → resume/verdict → `/audit` verify PASS → tamper → verify FAIL with
+  exact broken row → reset → verify PASS. **All 14 acceptance criteria (AC-1..AC-14) PASS.** No P0s.
+- Two P1s: (1) `README.md`'s "Run locally" quickstart is stale ("Status: scaffold only...") and
+  never calls `npm run seed`, so a stranger following it literally boots the plain/bare auto-seed
+  scenario instead of the intended richer "lived-in" demo fixture (backstory incident + verdict at
+  Indore-Rajwada) — fix before SUBMIT. (2) design.md's golden-path step 6 describes clicking an
+  incident row to navigate to `/incidents/:id`, which does not exist in the shipped build — the
+  shipped UI instead renders VerdictCard inline on `/`, which is allowed by design.md §4 and
+  actually satisfies AC-10 better (zero navigation), but the demo script/design doc should be
+  corrected so a presenter doesn't try to click a nonexistent row live.
+- Disclosed gap (not new): no browser automation tool exists in this environment, so the rendered
+  UI was verified by full HTTP/WS-level behavior checks plus careful code reading of every
+  `web/src/**` component, not by an actual screenshot. Recommend one human dry-run in a real browser
+  before presenting.
+- Full detail, AC-by-AC table, and P2 bug list: `.hackathon/qa.md` under "qa-demo-path".
+- **No blocker set — no P0s found.** Proceeding to HARDEN is safe.
 
 ## Artifacts
 - /home/user/hack/.hackathon/specs/spec-a.md — "Sentinel": full 5-stage loop, multi-center grid, incident
