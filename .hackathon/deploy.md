@@ -1,10 +1,70 @@
 # DEPLOY — Sentinel
 
-Phase: DEPLOY · Agent: devops-deploy · Date: 2026-09-19
+Phase: DEPLOY · Date: 2026-09-19/20
 Reads: `architecture.md` §6, §9, §14 (deploy definition + explicit blocked-path contingency).
 
-**Status: BLOCKED (cloud/shareable-URL deploy). LOCAL RUN: fully working, re-verified live in this
-environment just now.**
+**Status: LIVE. A real, public HTTPS URL now serves the actual product, deployed via the Vercel
+MCP.** §0 below is current; §1-§7 are kept as the record of the earlier Cloudflare attempt (blocked
+by this sandbox's network policy) and remain useful as the local-run fallback.
+
+---
+
+## 0. Live deployment (Vercel Sandbox) — current status
+
+**Public URL:** `https://sb-7l06rm86jh7b.vercel.run` (Vercel project `sentinel-exam-integrity`,
+`prj_EC1fM3Iw1Egq7qtYBpwoHGSeTFtL`).
+
+**How it was deployed:** the user asked to deploy via the Vercel MCP instead of Cloudflare. Rather
+than serverless Functions (Sentinel is a stateful single process with a persistent WebSocket server
+and a SQLite file — not a fit for stateless request/response functions), this uses a **Vercel
+Sandbox**: `mcp__Vercel__create_sandboxes_v4` cloned the GitHub repo, exposed port 8080, and
+`mcp__Vercel__run_session_command` ran the real build:
+
+```
+npm install && npm run build && npm run seed --workspace server
+NODE_ENV=production HOST=0.0.0.0 PORT=8080 npm start
+```
+
+**A real bug this surfaced and fixed:** the first deploy attempt crashed immediately with a native
+addon assertion failure inside `better-sqlite3` on the sandbox's Node v24.21.0 build — the exact
+"native-module ABI mismatch" risk `architecture.md`'s `connection.ts` comment had pre-flagged, with
+`node:sqlite` documented as the fallback. Implemented that fallback for real (see the
+`a14f969` commit): `db/connection.ts` now wraps Node's built-in `node:sqlite` behind the same
+`prepare()/pragma()/transaction()/close()` shape, so `repo.ts` and `migrate.ts` needed only a
+one-line type-import change each. Verified locally (typecheck, build, 16/16 tests, a live
+kill→verify run) before redeploying.
+
+**Verified live against the public URL itself** (not just locally): `GET /`, `GET /api/state`,
+kill switch → real missed-heartbeat detection → incident opens → freeze → `POST reconnect` →
+resolve, `POST /api/audit/verify` → PASS, `POST /api/sim/tamper` → verify → FAIL with the exact
+broken row, `POST /api/sim/reset` → verify → PASS again. Also opened the URL in a real headless
+Chromium browser (Playwright) and confirmed the UI renders correctly, including the honest
+WS→2s-polling degrade badge.
+
+**Honest limitations of this deployment, stated plainly:**
+- **This is not a permanent URL.** The Vercel account is on the Hobby plan, which caps Sandbox
+  sessions at 45 minutes; the sandbox is `persistent: true` with automatic snapshotting, so it can
+  be resumed within its snapshot's expiration window (7 days) via
+  `mcp__Vercel__get_named_sandbox(name: "sentinel-demo", resume: true)`, but it is not always-on
+  infrastructure the way a Vercel Function deployment would be. For a durable, always-on URL, either
+  upgrade to a Pro plan (24h sandbox sessions) or containerize the single process behind a
+  conventional host (Fly.io, Render, a small VM) — the app itself needs no code changes for that,
+  since it's already a single self-contained Node process.
+- **Two Vercel API calls needed the `teamId` omitted, not included**, even though the account has a
+  `defaultTeamId` — passing it returned a 403 scope error. Project creation and the sandbox itself
+  were created without an explicit `teamId`/`slug`, which worked. Worth knowing if resuming this
+  later.
+- **The GitHub repo could not be linked to the Vercel project directly** (`create_project` with
+  `gitRepository` also hit the same 403 scope error) — this needs the GitHub App/OAuth scope
+  authorized in the Vercel dashboard first. The Sandbox path used here (cloning via plain git URL)
+  does not require that authorization, which is why it worked without it.
+- The sandbox's `git pull` failed silently against a shallow (`depth: 1`) clone (no local
+  `origin/main` ref) when pulling the `node:sqlite` fix — worth using `git fetch && git reset --hard
+  FETCH_HEAD` instead of `git pull` for any future update to this sandbox.
+
+---
+
+## 1-7. Earlier attempt: local run + Cloudflare tunnel (kept for reference)
 
 ---
 

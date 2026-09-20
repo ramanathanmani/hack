@@ -5,11 +5,11 @@ freezes candidate clocks the moment a center goes dark, checkpoints every answer
 tamper-evident hash chain, and issues a verdict (re-conduct / partial extension / no action) with
 its rule, inputs and arithmetic shown on screen.
 
-**Live preview:** none — deploy is BLOCKED in this sandbox (outbound TCP/UDP port 7844 to
-Cloudflare's edge is not permitted here; see `.hackathon/deploy.md` for the exact log evidence and
-the 6-command fix on an unrestricted network). The product itself is fully built and verified,
-including in a real browser (`.hackathon/screenshots/`) — run it yourself with the Quick start
-below, or watch `demo/sentinel-golden-path.webm` (real screen capture, <1 MB).
+**Live preview:** **https://sb-7l06rm86jh7b.vercel.run** — deployed as a Vercel Sandbox (this app is
+a stateful single process with WebSocket + SQLite, not a serverless-function fit). Note: on the
+Hobby plan, Sandbox sessions cap at 45 minutes; if the link is asleep, run it yourself with the
+Quick start below, or watch `demo/sentinel-golden-path.webm` (real screen capture, <1 MB). Full
+deploy detail: `.hackathon/deploy.md` §0.
 
 Reference prototype for **MPOnline Idea & Innovation Hackathon 2026**, Technical track, **PS06 —
 Resilient & Trustworthy Online Assessment Ecosystem**.

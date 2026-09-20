@@ -4,23 +4,21 @@
 - event_name: MPOnline Idea & Innovation Hackathon 2026
 - event_dates: 09–10 October 2026, in-person, SSRGSP Bhopal (starts 09:00 IST, hack begins 10:30)
 - track: Technical
-- phase: SUBMIT (complete, one blocker remains)
-- status: blocked
+- phase: SUBMIT (complete, DEPLOY now live)
+- status: in_progress
 - last_agent: conductor
-- next_agent: pm-timebox (FREEZE)
+- next_agent: none — pipeline complete; deployment is live, see preview_url
 - submission_kit: all 10 items in intake.md §5 now exist. Items 1-6 exported to
   `.hackathon/submission/*.md` + `02-solution-presentation.pdf` (synthesized from
   pitch.md/problem.md/plan.md, no new claims). Items 7-9 (architecture doc, demo video, repo URL)
   were already done. Item 10 drafted in submit.md §3, needs a human read-through before pasting
   into the actual portal.
-- remaining blocker: DEPLOY — no shareable preview URL (sandbox egress restriction on port 7844,
-  see deploy.md §4-5; a 6-command fix on an unrestricted network). This is an environment
-  limitation, not a product defect; the local build is fully working and browser-verified.
-- stack: Node.js 22 + TypeScript · Fastify 5 + raw `ws` · SQLite via better-sqlite3 (single file,
-  forward-only .sql migrations) · hand-rolled SHA-256 hash chain (node:crypto), sharded per center ·
-  React 19 + Vite 6 + plain CSS · deterministic seeded telemetry simulator · npm workspaces
-  (`server/`, `web/`, `shared/`) · host = self-hosted localhost:8080, one process serves API + WS +
-  built UI, fully offline, no cloud/no auth/no API keys
+- stack: Node.js 22 + TypeScript · Fastify 5 + raw `ws` · SQLite via node:sqlite (swapped from
+  better-sqlite3 after a real deploy crash exposed a native-module ABI mismatch — see deploy.md §0),
+  single file, forward-only .sql migrations · hand-rolled SHA-256 hash chain (node:crypto), sharded
+  per center · React 19 + Vite 6 + plain CSS · deterministic seeded telemetry simulator · npm
+  workspaces (`server/`, `web/`, `shared/`) · deployed as one process serving API + WS + built UI,
+  fully offline-capable, no auth/no third-party API keys
 - winner_spec: spec-a.md — "Sentinel" (full 5-stage control tower), as amended by decision.md §4–§5
 - runner_up_spec: spec-b.md — "Checkpoint" (absorbed as Sentinel milestone M1, not discarded)
 - chosen_problem: PS06 — Resilient & Trustworthy Online Assessment Ecosystem
@@ -28,7 +26,15 @@
   Prevention → Detection → Response → Recovery → Trust
 - fallbacks: PS03 (AI-driven OSM), PS04 (Digital inclusion, rural HE)
 - repo_url: https://github.com/ramanathanmani/hack (branch: main)
-- preview_url: BLOCKED: outbound TCP/UDP port 7844 to Cloudflare edge not permitted in this sandbox (HTTP-CONNECT-only egress proxy, port 443 only) — cloudflared installed and ran successfully, printed a real trycloudflare.com hostname, but the tunnel data connection could never establish; see deploy.md §4-5 for exact logs/evidence and the exact commands a human on an unrestricted network can run to finish this in under a minute. LOCAL (`npm run build && npm start` -> http://127.0.0.1:8080) is fully working, re-verified live in this session.
+- preview_url: https://sb-7l06rm86jh7b.vercel.run — LIVE, deployed via the Vercel MCP as a Sandbox
+  (not a serverless Function, since the app is a stateful single process with WebSocket + SQLite).
+  Full golden path (kill -> detect -> freeze -> reconnect -> resolve -> verdict, plus
+  tamper/verify/reset) re-verified over real HTTP against this exact URL, and the UI verified in a
+  real browser. Caveat: Hobby-plan Sandbox sessions cap at 45 minutes; it is `persistent: true` with
+  snapshotting so it can be resumed (`get_named_sandbox(name: "sentinel-demo", resume: true)`)
+  within its 7-day snapshot window, but is not always-on the way a Function deploy would be. See
+  deploy.md §0 for full detail, including a real bug this deploy surfaced and fixed
+  (better-sqlite3 native-module crash -> swapped to node:sqlite).
 - demo_freeze: true
 - hours_total: ~3h to the Round 1 cut on Day 1 (10:30 → 13:30 IST, 09 Oct), then evening off-venue,
   then Day 2 finale presentations from 09:00
